@@ -10,14 +10,18 @@ pest()->extend(TestCase::class)->in('Feature');
 
 // WHY: truncation, not a wrapping transaction — the RLS tests open one connection per role, and a transaction on
 // the owner's connection would be invisible to them.
-pest()->use(DatabaseTruncation::class)->in('Feature/Schema');
+pest()->use(DatabaseTruncation::class)->in('Feature/Schema', 'Feature/Api', 'Feature/Console');
 
-// Fixture helpers run on the default connection, which the test process opens as webform_owner.
+// WHY: HTTP tests exercise the real api role (RLS included). Truncation and migrations already ran on the owner
+// connection in setUp; only the request path switches.
+pest()->beforeEach(fn () => config(['database.default' => 'pgsql_api']))->in('Feature/Api');
+
+// Fixture helpers run on the owner connection ('pgsql', which the test process opens as webform_owner).
 
 function tenant(): string
 {
     $id = (string) Str::uuid7();
-    DB::table('tenants')->insert(['id' => $id, 'name' => "tenant {$id}"]);
+    DB::connection('pgsql')->table('tenants')->insert(['id' => $id, 'name' => "tenant {$id}"]);
 
     return $id;
 }
@@ -26,19 +30,19 @@ function tenant(): string
 function form(string $tenantId, string $status = 'published'): array
 {
     $form = (string) Str::uuid7();
-    DB::table('forms')->insert(['id' => $form, 'tenant_id' => $tenantId, 'name' => 'f', 'draft' => '{"fields":[]}', 'status' => 'draft']);
+    DB::connection('pgsql')->table('forms')->insert(['id' => $form, 'tenant_id' => $tenantId, 'name' => 'f', 'draft' => '{"fields":[]}', 'status' => 'draft']);
 
     $version = null;
 
     if ($status !== 'draft') {
         $version = (string) Str::uuid7();
-        DB::table('form_versions')->insert([
+        DB::connection('pgsql')->table('form_versions')->insert([
             'id' => $version, 'form_id' => $form, 'tenant_id' => $tenantId, 'version_no' => 1,
             'definition' => '{"fields":[]}', 'published_at' => now(),
         ]);
     }
 
-    DB::table('forms')->where('id', $form)->update(['status' => $status, 'current_version_id' => $version]);
+    DB::connection('pgsql')->table('forms')->where('id', $form)->update(['status' => $status, 'current_version_id' => $version]);
 
     return ['form' => $form, 'version' => $version];
 }
@@ -60,4 +64,13 @@ function asTenant(string $connection, string $tenantId, Closure $callback): mixe
 
         return $callback($db);
     });
+}
+
+/** Create an API key for the tenant (as owner) and return the plaintext to send as a Bearer token. */
+function apiKey(string $tenantId): string
+{
+    $key = 'wf_test_'.Str::random(32);
+    DB::connection('pgsql')->table('api_keys')->insert(['id' => (string) Str::uuid7(), 'tenant_id' => $tenantId, 'key_hash' => hash('sha256', $key)]);
+
+    return $key;
 }

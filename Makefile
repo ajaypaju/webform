@@ -3,7 +3,7 @@ COMPOSE_DEV := docker compose -f compose.yaml -f compose.dev.yaml
 export UID  := $(shell id -u)
 export GID  := $(shell id -g)
 
-.PHONY: up dev key down reset logs sh test test-php test-js reload
+.PHONY: up dev key down reset logs sh test test-php test-js tenant reload
 
 ## up: build, generate APP_KEY, start everything and wait until healthy (the reviewer command)
 up: .env
@@ -49,6 +49,10 @@ test-php:
 ## test-js: cross-engine regex check (tests/js), no npm dependencies
 test-js:
 	docker run --rm -v "$(CURDIR):/app:ro" -w /app node:22-alpine node --test tests/js/*.test.mjs
+
+## tenant: create a tenant and print its API key once, as the owner role (usage: make tenant name="Acme")
+tenant:
+	$(COMPOSE) run --rm --no-deps migrate php artisan tenants:create "$(name)"
 
 reload:
 	$(COMPOSE) exec api php artisan octane:reload
