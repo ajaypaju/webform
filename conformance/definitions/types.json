@@ -1,0 +1,159 @@
+[
+  {
+    "name": "every_type",
+    "definition": {
+      "fields": [
+        {
+          "id": "t",
+          "type": "text",
+          "label": "T",
+          "required": false
+        },
+        {
+          "id": "e",
+          "type": "email",
+          "label": "E",
+          "required": false
+        },
+        {
+          "id": "n",
+          "type": "number",
+          "label": "N",
+          "required": false
+        },
+        {
+          "id": "s",
+          "type": "select",
+          "label": "S",
+          "required": false,
+          "options": [
+            {
+              "value": "a",
+              "label": "A"
+            },
+            {
+              "value": "b",
+              "label": "B"
+            },
+            {
+              "value": "c",
+              "label": "C"
+            }
+          ]
+        },
+        {
+          "id": "m",
+          "type": "multiselect",
+          "label": "M",
+          "required": false,
+          "options": [
+            {
+              "value": "a",
+              "label": "A"
+            },
+            {
+              "value": "b",
+              "label": "B"
+            },
+            {
+              "value": "c",
+              "label": "C"
+            }
+          ]
+        },
+        {
+          "id": "r",
+          "type": "radio",
+          "label": "R",
+          "required": false,
+          "options": [
+            {
+              "value": "a",
+              "label": "A"
+            },
+            {
+              "value": "b",
+              "label": "B"
+            },
+            {
+              "value": "c",
+              "label": "C"
+            }
+          ]
+        },
+        {
+          "id": "c",
+          "type": "checkbox",
+          "label": "C",
+          "required": false
+        },
+        {
+          "id": "d",
+          "type": "date",
+          "label": "D",
+          "required": false
+        }
+      ]
+    },
+    "valid": true,
+    "errors": []
+  },
+  {
+    "name": "unknown_type",
+    "definition": {
+      "fields": [
+        {
+          "id": "t",
+          "type": "textarea",
+          "label": "T",
+          "required": false
+        }
+      ]
+    },
+    "valid": false,
+    "errors": [
+      "field_type"
+    ]
+  },
+  {
+    "name": "type_missing",
+    "definition": {
+      "fields": [
+        {
+          "id": "t",
+          "label": "T",
+          "required": false
+        }
+      ]
+    },
+    "valid": false,
+    "errors": [
+      "field_type"
+    ]
+  },
+  {
+    "name": "type_uppercase",
+    "definition": {
+      "fields": [
+        {
+          "id": "t",
+          "type": "Text",
+          "label": "T",
+          "required": false
+        }
+      ]
+    },
+    "valid": false,
+    "errors": [
+      "field_type"
+    ]
+  },
+  {
+    "name": "empty_definition",
+    "definition": {
+      "fields": []
+    },
+    "valid": true,
+    "errors": []
+  }
+]

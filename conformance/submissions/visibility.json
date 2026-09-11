@@ -1,0 +1,1002 @@
+[
+  {
+    "name": "chain_all_visible",
+    "definition": {
+      "fields": [
+        {
+          "id": "a",
+          "type": "select",
+          "label": "A",
+          "required": true,
+          "options": [
+            {
+              "value": "yes",
+              "label": "YES"
+            },
+            {
+              "value": "no",
+              "label": "NO"
+            }
+          ]
+        },
+        {
+          "id": "b",
+          "type": "text",
+          "label": "B",
+          "required": true,
+          "visible_if": {
+            "field": "a",
+            "op": "eq",
+            "value": "yes"
+          }
+        },
+        {
+          "id": "c",
+          "type": "text",
+          "label": "C",
+          "required": true,
+          "visible_if": {
+            "field": "b",
+            "op": "eq",
+            "value": "deep"
+          }
+        }
+      ]
+    },
+    "input": {
+      "a": "yes",
+      "b": "deep",
+      "c": "x"
+    },
+    "valid": true,
+    "errors": {},
+    "output": {
+      "a": "yes",
+      "b": "deep",
+      "c": "x"
+    }
+  },
+  {
+    "name": "chain_all_visible_c_missing",
+    "definition": {
+      "fields": [
+        {
+          "id": "a",
+          "type": "select",
+          "label": "A",
+          "required": true,
+          "options": [
+            {
+              "value": "yes",
+              "label": "YES"
+            },
+            {
+              "value": "no",
+              "label": "NO"
+            }
+          ]
+        },
+        {
+          "id": "b",
+          "type": "text",
+          "label": "B",
+          "required": true,
+          "visible_if": {
+            "field": "a",
+            "op": "eq",
+            "value": "yes"
+          }
+        },
+        {
+          "id": "c",
+          "type": "text",
+          "label": "C",
+          "required": true,
+          "visible_if": {
+            "field": "b",
+            "op": "eq",
+            "value": "deep"
+          }
+        }
+      ]
+    },
+    "input": {
+      "a": "yes",
+      "b": "deep"
+    },
+    "valid": false,
+    "errors": {
+      "c": [
+        "required"
+      ]
+    },
+    "output": {}
+  },
+  {
+    "name": "chain_c_hidden_value_dropped",
+    "definition": {
+      "fields": [
+        {
+          "id": "a",
+          "type": "select",
+          "label": "A",
+          "required": true,
+          "options": [
+            {
+              "value": "yes",
+              "label": "YES"
+            },
+            {
+              "value": "no",
+              "label": "NO"
+            }
+          ]
+        },
+        {
+          "id": "b",
+          "type": "text",
+          "label": "B",
+          "required": true,
+          "visible_if": {
+            "field": "a",
+            "op": "eq",
+            "value": "yes"
+          }
+        },
+        {
+          "id": "c",
+          "type": "text",
+          "label": "C",
+          "required": true,
+          "visible_if": {
+            "field": "b",
+            "op": "eq",
+            "value": "deep"
+          }
+        }
+      ]
+    },
+    "input": {
+      "a": "yes",
+      "b": "shallow",
+      "c": "x"
+    },
+    "valid": true,
+    "errors": {},
+    "output": {
+      "a": "yes",
+      "b": "shallow"
+    }
+  },
+  {
+    "name": "chain_b_and_c_hidden",
+    "definition": {
+      "fields": [
+        {
+          "id": "a",
+          "type": "select",
+          "label": "A",
+          "required": true,
+          "options": [
+            {
+              "value": "yes",
+              "label": "YES"
+            },
+            {
+              "value": "no",
+              "label": "NO"
+            }
+          ]
+        },
+        {
+          "id": "b",
+          "type": "text",
+          "label": "B",
+          "required": true,
+          "visible_if": {
+            "field": "a",
+            "op": "eq",
+            "value": "yes"
+          }
+        },
+        {
+          "id": "c",
+          "type": "text",
+          "label": "C",
+          "required": true,
+          "visible_if": {
+            "field": "b",
+            "op": "eq",
+            "value": "deep"
+          }
+        }
+      ]
+    },
+    "input": {
+      "a": "no"
+    },
+    "valid": true,
+    "errors": {},
+    "output": {
+      "a": "no"
+    }
+  },
+  {
+    "name": "hidden_required_field_is_not_required",
+    "definition": {
+      "fields": [
+        {
+          "id": "a",
+          "type": "select",
+          "label": "A",
+          "required": true,
+          "options": [
+            {
+              "value": "yes",
+              "label": "YES"
+            },
+            {
+              "value": "no",
+              "label": "NO"
+            }
+          ]
+        },
+        {
+          "id": "b",
+          "type": "text",
+          "label": "B",
+          "required": true,
+          "visible_if": {
+            "field": "a",
+            "op": "eq",
+            "value": "yes"
+          }
+        },
+        {
+          "id": "c",
+          "type": "text",
+          "label": "C",
+          "required": true,
+          "visible_if": {
+            "field": "b",
+            "op": "eq",
+            "value": "deep"
+          }
+        }
+      ]
+    },
+    "input": {
+      "a": "no"
+    },
+    "valid": true,
+    "errors": {},
+    "output": {
+      "a": "no"
+    }
+  },
+  {
+    "name": "visible_required_field_is_required",
+    "definition": {
+      "fields": [
+        {
+          "id": "a",
+          "type": "select",
+          "label": "A",
+          "required": true,
+          "options": [
+            {
+              "value": "yes",
+              "label": "YES"
+            },
+            {
+              "value": "no",
+              "label": "NO"
+            }
+          ]
+        },
+        {
+          "id": "b",
+          "type": "text",
+          "label": "B",
+          "required": true,
+          "visible_if": {
+            "field": "a",
+            "op": "eq",
+            "value": "yes"
+          }
+        },
+        {
+          "id": "c",
+          "type": "text",
+          "label": "C",
+          "required": true,
+          "visible_if": {
+            "field": "b",
+            "op": "eq",
+            "value": "deep"
+          }
+        }
+      ]
+    },
+    "input": {
+      "a": "yes"
+    },
+    "valid": false,
+    "errors": {
+      "b": [
+        "required"
+      ]
+    },
+    "output": {}
+  },
+  {
+    "name": "hidden_field_value_dropped_and_downstream_stays_hidden",
+    "definition": {
+      "fields": [
+        {
+          "id": "a",
+          "type": "select",
+          "label": "A",
+          "required": true,
+          "options": [
+            {
+              "value": "yes",
+              "label": "YES"
+            },
+            {
+              "value": "no",
+              "label": "NO"
+            }
+          ]
+        },
+        {
+          "id": "b",
+          "type": "text",
+          "label": "B",
+          "required": true,
+          "visible_if": {
+            "field": "a",
+            "op": "eq",
+            "value": "yes"
+          }
+        },
+        {
+          "id": "c",
+          "type": "text",
+          "label": "C",
+          "required": true,
+          "visible_if": {
+            "field": "b",
+            "op": "eq",
+            "value": "deep"
+          }
+        }
+      ]
+    },
+    "input": {
+      "a": "no",
+      "b": "deep",
+      "c": "x"
+    },
+    "valid": true,
+    "errors": {},
+    "output": {
+      "a": "no"
+    }
+  },
+  {
+    "name": "hidden_field_gets_no_rules_even_with_wrong_type",
+    "definition": {
+      "fields": [
+        {
+          "id": "a",
+          "type": "select",
+          "label": "A",
+          "required": true,
+          "options": [
+            {
+              "value": "yes",
+              "label": "YES"
+            },
+            {
+              "value": "no",
+              "label": "NO"
+            }
+          ]
+        },
+        {
+          "id": "b",
+          "type": "text",
+          "label": "B",
+          "required": true,
+          "visible_if": {
+            "field": "a",
+            "op": "eq",
+            "value": "yes"
+          }
+        },
+        {
+          "id": "c",
+          "type": "text",
+          "label": "C",
+          "required": true,
+          "visible_if": {
+            "field": "b",
+            "op": "eq",
+            "value": "deep"
+          }
+        }
+      ]
+    },
+    "input": {
+      "a": "no",
+      "b": 12345
+    },
+    "valid": true,
+    "errors": {},
+    "output": {
+      "a": "no"
+    }
+  },
+  {
+    "name": "neq_with_reference_not_provided_is_visible",
+    "definition": {
+      "fields": [
+        {
+          "id": "x",
+          "type": "text",
+          "label": "X",
+          "required": false
+        },
+        {
+          "id": "y",
+          "type": "text",
+          "label": "Y",
+          "required": true,
+          "visible_if": {
+            "field": "x",
+            "op": "neq",
+            "value": "skip"
+          }
+        }
+      ]
+    },
+    "input": {},
+    "valid": false,
+    "errors": {
+      "y": [
+        "required"
+      ]
+    },
+    "output": {}
+  },
+  {
+    "name": "neq_hides_when_equal",
+    "definition": {
+      "fields": [
+        {
+          "id": "x",
+          "type": "text",
+          "label": "X",
+          "required": false
+        },
+        {
+          "id": "y",
+          "type": "text",
+          "label": "Y",
+          "required": true,
+          "visible_if": {
+            "field": "x",
+            "op": "neq",
+            "value": "skip"
+          }
+        }
+      ]
+    },
+    "input": {
+      "x": "skip",
+      "y": "dropped"
+    },
+    "valid": true,
+    "errors": {},
+    "output": {
+      "x": "skip"
+    }
+  },
+  {
+    "name": "neq_shows_when_different",
+    "definition": {
+      "fields": [
+        {
+          "id": "x",
+          "type": "text",
+          "label": "X",
+          "required": false
+        },
+        {
+          "id": "y",
+          "type": "text",
+          "label": "Y",
+          "required": true,
+          "visible_if": {
+            "field": "x",
+            "op": "neq",
+            "value": "skip"
+          }
+        }
+      ]
+    },
+    "input": {
+      "x": "other",
+      "y": "kept"
+    },
+    "valid": true,
+    "errors": {},
+    "output": {
+      "x": "other",
+      "y": "kept"
+    }
+  },
+  {
+    "name": "eq_with_reference_not_provided_is_hidden",
+    "definition": {
+      "fields": [
+        {
+          "id": "x",
+          "type": "text",
+          "label": "X",
+          "required": false
+        },
+        {
+          "id": "y",
+          "type": "text",
+          "label": "Y",
+          "required": true,
+          "visible_if": {
+            "field": "x",
+            "op": "eq",
+            "value": "show"
+          }
+        }
+      ]
+    },
+    "input": {},
+    "valid": true,
+    "errors": {},
+    "output": {}
+  },
+  {
+    "name": "eq_with_reference_empty_string_is_hidden",
+    "definition": {
+      "fields": [
+        {
+          "id": "x",
+          "type": "text",
+          "label": "X",
+          "required": false
+        },
+        {
+          "id": "y",
+          "type": "text",
+          "label": "Y",
+          "required": true,
+          "visible_if": {
+            "field": "x",
+            "op": "eq",
+            "value": "show"
+          }
+        }
+      ]
+    },
+    "input": {
+      "x": "",
+      "y": "dropped"
+    },
+    "valid": true,
+    "errors": {},
+    "output": {}
+  },
+  {
+    "name": "eq_shows_when_equal",
+    "definition": {
+      "fields": [
+        {
+          "id": "x",
+          "type": "text",
+          "label": "X",
+          "required": false
+        },
+        {
+          "id": "y",
+          "type": "text",
+          "label": "Y",
+          "required": true,
+          "visible_if": {
+            "field": "x",
+            "op": "eq",
+            "value": "show"
+          }
+        }
+      ]
+    },
+    "input": {
+      "x": "show",
+      "y": "kept"
+    },
+    "valid": true,
+    "errors": {},
+    "output": {
+      "x": "show",
+      "y": "kept"
+    }
+  },
+  {
+    "name": "eq_is_case_sensitive",
+    "definition": {
+      "fields": [
+        {
+          "id": "x",
+          "type": "text",
+          "label": "X",
+          "required": false
+        },
+        {
+          "id": "y",
+          "type": "text",
+          "label": "Y",
+          "required": true,
+          "visible_if": {
+            "field": "x",
+            "op": "eq",
+            "value": "show"
+          }
+        }
+      ]
+    },
+    "input": {
+      "x": "SHOW",
+      "y": "dropped"
+    },
+    "valid": true,
+    "errors": {},
+    "output": {
+      "x": "SHOW"
+    }
+  },
+  {
+    "name": "in_shows_when_member",
+    "definition": {
+      "fields": [
+        {
+          "id": "x",
+          "type": "select",
+          "label": "X",
+          "required": false,
+          "options": [
+            {
+              "value": "a",
+              "label": "A"
+            },
+            {
+              "value": "b",
+              "label": "B"
+            },
+            {
+              "value": "c",
+              "label": "C"
+            }
+          ]
+        },
+        {
+          "id": "y",
+          "type": "text",
+          "label": "Y",
+          "required": true,
+          "visible_if": {
+            "field": "x",
+            "op": "in",
+            "value": [
+              "a",
+              "b"
+            ]
+          }
+        }
+      ]
+    },
+    "input": {
+      "x": "b",
+      "y": "kept"
+    },
+    "valid": true,
+    "errors": {},
+    "output": {
+      "x": "b",
+      "y": "kept"
+    }
+  },
+  {
+    "name": "in_hides_when_not_member",
+    "definition": {
+      "fields": [
+        {
+          "id": "x",
+          "type": "select",
+          "label": "X",
+          "required": false,
+          "options": [
+            {
+              "value": "a",
+              "label": "A"
+            },
+            {
+              "value": "b",
+              "label": "B"
+            },
+            {
+              "value": "c",
+              "label": "C"
+            }
+          ]
+        },
+        {
+          "id": "y",
+          "type": "text",
+          "label": "Y",
+          "required": true,
+          "visible_if": {
+            "field": "x",
+            "op": "in",
+            "value": [
+              "a",
+              "b"
+            ]
+          }
+        }
+      ]
+    },
+    "input": {
+      "x": "c",
+      "y": "dropped"
+    },
+    "valid": true,
+    "errors": {},
+    "output": {
+      "x": "c"
+    }
+  },
+  {
+    "name": "in_with_reference_not_provided_is_hidden",
+    "definition": {
+      "fields": [
+        {
+          "id": "x",
+          "type": "select",
+          "label": "X",
+          "required": false,
+          "options": [
+            {
+              "value": "a",
+              "label": "A"
+            },
+            {
+              "value": "b",
+              "label": "B"
+            },
+            {
+              "value": "c",
+              "label": "C"
+            }
+          ]
+        },
+        {
+          "id": "y",
+          "type": "text",
+          "label": "Y",
+          "required": true,
+          "visible_if": {
+            "field": "x",
+            "op": "in",
+            "value": [
+              "a",
+              "b"
+            ]
+          }
+        }
+      ]
+    },
+    "input": {},
+    "valid": true,
+    "errors": {},
+    "output": {}
+  },
+  {
+    "name": "checkbox_eq_true_shows",
+    "definition": {
+      "fields": [
+        {
+          "id": "consent",
+          "type": "checkbox",
+          "label": "Consent",
+          "required": false
+        },
+        {
+          "id": "details",
+          "type": "text",
+          "label": "Details",
+          "required": true,
+          "visible_if": {
+            "field": "consent",
+            "op": "eq",
+            "value": true
+          }
+        }
+      ]
+    },
+    "input": {
+      "consent": true,
+      "details": "d"
+    },
+    "valid": true,
+    "errors": {},
+    "output": {
+      "consent": true,
+      "details": "d"
+    }
+  },
+  {
+    "name": "checkbox_eq_true_hides_on_false",
+    "definition": {
+      "fields": [
+        {
+          "id": "consent",
+          "type": "checkbox",
+          "label": "Consent",
+          "required": false
+        },
+        {
+          "id": "details",
+          "type": "text",
+          "label": "Details",
+          "required": true,
+          "visible_if": {
+            "field": "consent",
+            "op": "eq",
+            "value": true
+          }
+        }
+      ]
+    },
+    "input": {
+      "consent": false,
+      "details": "dropped"
+    },
+    "valid": true,
+    "errors": {},
+    "output": {
+      "consent": false
+    }
+  },
+  {
+    "name": "checkbox_eq_true_hides_when_missing",
+    "definition": {
+      "fields": [
+        {
+          "id": "consent",
+          "type": "checkbox",
+          "label": "Consent",
+          "required": false
+        },
+        {
+          "id": "details",
+          "type": "text",
+          "label": "Details",
+          "required": true,
+          "visible_if": {
+            "field": "consent",
+            "op": "eq",
+            "value": true
+          }
+        }
+      ]
+    },
+    "input": {},
+    "valid": true,
+    "errors": {},
+    "output": {}
+  },
+  {
+    "name": "number_eq_zero_shows_on_zero",
+    "definition": {
+      "fields": [
+        {
+          "id": "n",
+          "type": "number",
+          "label": "N",
+          "required": false
+        },
+        {
+          "id": "why",
+          "type": "text",
+          "label": "Why",
+          "required": true,
+          "visible_if": {
+            "field": "n",
+            "op": "eq",
+            "value": 0
+          }
+        }
+      ]
+    },
+    "input": {
+      "n": 0,
+      "why": "w"
+    },
+    "valid": true,
+    "errors": {},
+    "output": {
+      "n": 0,
+      "why": "w"
+    }
+  },
+  {
+    "name": "number_eq_zero_hides_on_other",
+    "definition": {
+      "fields": [
+        {
+          "id": "n",
+          "type": "number",
+          "label": "N",
+          "required": false
+        },
+        {
+          "id": "why",
+          "type": "text",
+          "label": "Why",
+          "required": true,
+          "visible_if": {
+            "field": "n",
+            "op": "eq",
+            "value": 0
+          }
+        }
+      ]
+    },
+    "input": {
+      "n": 1,
+      "why": "dropped"
+    },
+    "valid": true,
+    "errors": {},
+    "output": {
+      "n": 1
+    }
+  },
+  {
+    "name": "number_eq_zero_hides_when_missing",
+    "definition": {
+      "fields": [
+        {
+          "id": "n",
+          "type": "number",
+          "label": "N",
+          "required": false
+        },
+        {
+          "id": "why",
+          "type": "text",
+          "label": "Why",
+          "required": true,
+          "visible_if": {
+            "field": "n",
+            "op": "eq",
+            "value": 0
+          }
+        }
+      ]
+    },
+    "input": {},
+    "valid": true,
+    "errors": {},
+    "output": {}
+  }
+]

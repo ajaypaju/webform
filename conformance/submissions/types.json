@@ -1,0 +1,1220 @@
+[
+  {
+    "name": "text_valid",
+    "definition": {
+      "fields": [
+        {
+          "id": "name",
+          "type": "text",
+          "label": "Name",
+          "required": false
+        }
+      ]
+    },
+    "input": {
+      "name": "Ada"
+    },
+    "valid": true,
+    "errors": {},
+    "output": {
+      "name": "Ada"
+    }
+  },
+  {
+    "name": "text_wrong_type_number",
+    "definition": {
+      "fields": [
+        {
+          "id": "name",
+          "type": "text",
+          "label": "Name",
+          "required": false
+        }
+      ]
+    },
+    "input": {
+      "name": 5
+    },
+    "valid": false,
+    "errors": {
+      "name": [
+        "type"
+      ]
+    },
+    "output": {}
+  },
+  {
+    "name": "text_wrong_type_bool",
+    "definition": {
+      "fields": [
+        {
+          "id": "name",
+          "type": "text",
+          "label": "Name",
+          "required": false
+        }
+      ]
+    },
+    "input": {
+      "name": true
+    },
+    "valid": false,
+    "errors": {
+      "name": [
+        "type"
+      ]
+    },
+    "output": {}
+  },
+  {
+    "name": "text_wrong_type_array",
+    "definition": {
+      "fields": [
+        {
+          "id": "name",
+          "type": "text",
+          "label": "Name",
+          "required": false
+        }
+      ]
+    },
+    "input": {
+      "name": [
+        "Ada"
+      ]
+    },
+    "valid": false,
+    "errors": {
+      "name": [
+        "type"
+      ]
+    },
+    "output": {}
+  },
+  {
+    "name": "text_wrong_type_object",
+    "definition": {
+      "fields": [
+        {
+          "id": "name",
+          "type": "text",
+          "label": "Name",
+          "required": false
+        }
+      ]
+    },
+    "input": {
+      "name": {
+        "first": "Ada"
+      }
+    },
+    "valid": false,
+    "errors": {
+      "name": [
+        "type"
+      ]
+    },
+    "output": {}
+  },
+  {
+    "name": "email_valid",
+    "definition": {
+      "fields": [
+        {
+          "id": "email",
+          "type": "email",
+          "label": "Email",
+          "required": false
+        }
+      ]
+    },
+    "input": {
+      "email": "ada@example.com"
+    },
+    "valid": true,
+    "errors": {},
+    "output": {
+      "email": "ada@example.com"
+    }
+  },
+  {
+    "name": "email_valid_subdomain_plus",
+    "definition": {
+      "fields": [
+        {
+          "id": "email",
+          "type": "email",
+          "label": "Email",
+          "required": false
+        }
+      ]
+    },
+    "input": {
+      "email": "ada+tag@mail.example.co.uk"
+    },
+    "valid": true,
+    "errors": {},
+    "output": {
+      "email": "ada+tag@mail.example.co.uk"
+    }
+  },
+  {
+    "name": "email_valid_max_254_chars",
+    "definition": {
+      "fields": [
+        {
+          "id": "email",
+          "type": "email",
+          "label": "Email",
+          "required": false
+        }
+      ]
+    },
+    "input": {
+      "email": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa@x.io"
+    },
+    "valid": true,
+    "errors": {},
+    "output": {
+      "email": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa@x.io"
+    }
+  },
+  {
+    "name": "email_wrong_type_number",
+    "definition": {
+      "fields": [
+        {
+          "id": "email",
+          "type": "email",
+          "label": "Email",
+          "required": false
+        }
+      ]
+    },
+    "input": {
+      "email": 5
+    },
+    "valid": false,
+    "errors": {
+      "email": [
+        "type"
+      ]
+    },
+    "output": {}
+  },
+  {
+    "name": "email_invalid_no_at",
+    "definition": {
+      "fields": [
+        {
+          "id": "email",
+          "type": "email",
+          "label": "Email",
+          "required": false
+        }
+      ]
+    },
+    "input": {
+      "email": "ada.example.com"
+    },
+    "valid": false,
+    "errors": {
+      "email": [
+        "email"
+      ]
+    },
+    "output": {}
+  },
+  {
+    "name": "email_invalid_two_ats",
+    "definition": {
+      "fields": [
+        {
+          "id": "email",
+          "type": "email",
+          "label": "Email",
+          "required": false
+        }
+      ]
+    },
+    "input": {
+      "email": "ada@@example.com"
+    },
+    "valid": false,
+    "errors": {
+      "email": [
+        "email"
+      ]
+    },
+    "output": {}
+  },
+  {
+    "name": "email_invalid_inner_whitespace",
+    "definition": {
+      "fields": [
+        {
+          "id": "email",
+          "type": "email",
+          "label": "Email",
+          "required": false
+        }
+      ]
+    },
+    "input": {
+      "email": "a da@example.com"
+    },
+    "valid": false,
+    "errors": {
+      "email": [
+        "email"
+      ]
+    },
+    "output": {}
+  },
+  {
+    "name": "email_invalid_domain_without_dot",
+    "definition": {
+      "fields": [
+        {
+          "id": "email",
+          "type": "email",
+          "label": "Email",
+          "required": false
+        }
+      ]
+    },
+    "input": {
+      "email": "ada@example"
+    },
+    "valid": false,
+    "errors": {
+      "email": [
+        "email"
+      ]
+    },
+    "output": {}
+  },
+  {
+    "name": "email_invalid_empty_local_part",
+    "definition": {
+      "fields": [
+        {
+          "id": "email",
+          "type": "email",
+          "label": "Email",
+          "required": false
+        }
+      ]
+    },
+    "input": {
+      "email": "@example.com"
+    },
+    "valid": false,
+    "errors": {
+      "email": [
+        "email"
+      ]
+    },
+    "output": {}
+  },
+  {
+    "name": "email_invalid_255_chars",
+    "definition": {
+      "fields": [
+        {
+          "id": "email",
+          "type": "email",
+          "label": "Email",
+          "required": false
+        }
+      ]
+    },
+    "input": {
+      "email": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa@x.io"
+    },
+    "valid": false,
+    "errors": {
+      "email": [
+        "email"
+      ]
+    },
+    "output": {}
+  },
+  {
+    "name": "number_valid_integer",
+    "definition": {
+      "fields": [
+        {
+          "id": "n",
+          "type": "number",
+          "label": "N",
+          "required": false
+        }
+      ]
+    },
+    "input": {
+      "n": 42
+    },
+    "valid": true,
+    "errors": {},
+    "output": {
+      "n": 42
+    }
+  },
+  {
+    "name": "number_valid_float",
+    "definition": {
+      "fields": [
+        {
+          "id": "n",
+          "type": "number",
+          "label": "N",
+          "required": false
+        }
+      ]
+    },
+    "input": {
+      "n": 4.5
+    },
+    "valid": true,
+    "errors": {},
+    "output": {
+      "n": 4.5
+    }
+  },
+  {
+    "name": "number_valid_negative",
+    "definition": {
+      "fields": [
+        {
+          "id": "n",
+          "type": "number",
+          "label": "N",
+          "required": false
+        }
+      ]
+    },
+    "input": {
+      "n": -3
+    },
+    "valid": true,
+    "errors": {},
+    "output": {
+      "n": -3
+    }
+  },
+  {
+    "name": "number_valid_zero",
+    "definition": {
+      "fields": [
+        {
+          "id": "n",
+          "type": "number",
+          "label": "N",
+          "required": false
+        }
+      ]
+    },
+    "input": {
+      "n": 0
+    },
+    "valid": true,
+    "errors": {},
+    "output": {
+      "n": 0
+    }
+  },
+  {
+    "name": "number_wrong_type_bool",
+    "definition": {
+      "fields": [
+        {
+          "id": "n",
+          "type": "number",
+          "label": "N",
+          "required": false
+        }
+      ]
+    },
+    "input": {
+      "n": true
+    },
+    "valid": false,
+    "errors": {
+      "n": [
+        "type"
+      ]
+    },
+    "output": {}
+  },
+  {
+    "name": "number_wrong_type_array",
+    "definition": {
+      "fields": [
+        {
+          "id": "n",
+          "type": "number",
+          "label": "N",
+          "required": false
+        }
+      ]
+    },
+    "input": {
+      "n": [
+        42
+      ]
+    },
+    "valid": false,
+    "errors": {
+      "n": [
+        "type"
+      ]
+    },
+    "output": {}
+  },
+  {
+    "name": "number_wrong_type_string",
+    "definition": {
+      "fields": [
+        {
+          "id": "n",
+          "type": "number",
+          "label": "N",
+          "required": false
+        }
+      ]
+    },
+    "input": {
+      "n": "forty-two"
+    },
+    "valid": false,
+    "errors": {
+      "n": [
+        "type"
+      ]
+    },
+    "output": {}
+  },
+  {
+    "name": "select_valid",
+    "definition": {
+      "fields": [
+        {
+          "id": "s",
+          "type": "select",
+          "label": "S",
+          "required": false,
+          "options": [
+            {
+              "value": "a",
+              "label": "A"
+            },
+            {
+              "value": "b",
+              "label": "B"
+            },
+            {
+              "value": "c",
+              "label": "C"
+            }
+          ]
+        }
+      ]
+    },
+    "input": {
+      "s": "b"
+    },
+    "valid": true,
+    "errors": {},
+    "output": {
+      "s": "b"
+    }
+  },
+  {
+    "name": "select_wrong_type_number",
+    "definition": {
+      "fields": [
+        {
+          "id": "s",
+          "type": "select",
+          "label": "S",
+          "required": false,
+          "options": [
+            {
+              "value": "a",
+              "label": "A"
+            },
+            {
+              "value": "b",
+              "label": "B"
+            },
+            {
+              "value": "c",
+              "label": "C"
+            }
+          ]
+        }
+      ]
+    },
+    "input": {
+      "s": 1
+    },
+    "valid": false,
+    "errors": {
+      "s": [
+        "type"
+      ]
+    },
+    "output": {}
+  },
+  {
+    "name": "select_wrong_type_array",
+    "definition": {
+      "fields": [
+        {
+          "id": "s",
+          "type": "select",
+          "label": "S",
+          "required": false,
+          "options": [
+            {
+              "value": "a",
+              "label": "A"
+            },
+            {
+              "value": "b",
+              "label": "B"
+            },
+            {
+              "value": "c",
+              "label": "C"
+            }
+          ]
+        }
+      ]
+    },
+    "input": {
+      "s": [
+        "a"
+      ]
+    },
+    "valid": false,
+    "errors": {
+      "s": [
+        "type"
+      ]
+    },
+    "output": {}
+  },
+  {
+    "name": "select_not_an_option",
+    "definition": {
+      "fields": [
+        {
+          "id": "s",
+          "type": "select",
+          "label": "S",
+          "required": false,
+          "options": [
+            {
+              "value": "a",
+              "label": "A"
+            },
+            {
+              "value": "b",
+              "label": "B"
+            },
+            {
+              "value": "c",
+              "label": "C"
+            }
+          ]
+        }
+      ]
+    },
+    "input": {
+      "s": "z"
+    },
+    "valid": false,
+    "errors": {
+      "s": [
+        "option"
+      ]
+    },
+    "output": {}
+  },
+  {
+    "name": "multiselect_valid",
+    "definition": {
+      "fields": [
+        {
+          "id": "m",
+          "type": "multiselect",
+          "label": "M",
+          "required": false,
+          "options": [
+            {
+              "value": "a",
+              "label": "A"
+            },
+            {
+              "value": "b",
+              "label": "B"
+            },
+            {
+              "value": "c",
+              "label": "C"
+            }
+          ]
+        }
+      ]
+    },
+    "input": {
+      "m": [
+        "a",
+        "c"
+      ]
+    },
+    "valid": true,
+    "errors": {},
+    "output": {
+      "m": [
+        "a",
+        "c"
+      ]
+    }
+  },
+  {
+    "name": "multiselect_valid_single",
+    "definition": {
+      "fields": [
+        {
+          "id": "m",
+          "type": "multiselect",
+          "label": "M",
+          "required": false,
+          "options": [
+            {
+              "value": "a",
+              "label": "A"
+            },
+            {
+              "value": "b",
+              "label": "B"
+            },
+            {
+              "value": "c",
+              "label": "C"
+            }
+          ]
+        }
+      ]
+    },
+    "input": {
+      "m": [
+        "b"
+      ]
+    },
+    "valid": true,
+    "errors": {},
+    "output": {
+      "m": [
+        "b"
+      ]
+    }
+  },
+  {
+    "name": "multiselect_wrong_type_string",
+    "definition": {
+      "fields": [
+        {
+          "id": "m",
+          "type": "multiselect",
+          "label": "M",
+          "required": false,
+          "options": [
+            {
+              "value": "a",
+              "label": "A"
+            },
+            {
+              "value": "b",
+              "label": "B"
+            },
+            {
+              "value": "c",
+              "label": "C"
+            }
+          ]
+        }
+      ]
+    },
+    "input": {
+      "m": "a"
+    },
+    "valid": false,
+    "errors": {
+      "m": [
+        "type"
+      ]
+    },
+    "output": {}
+  },
+  {
+    "name": "multiselect_element_wrong_type",
+    "definition": {
+      "fields": [
+        {
+          "id": "m",
+          "type": "multiselect",
+          "label": "M",
+          "required": false,
+          "options": [
+            {
+              "value": "a",
+              "label": "A"
+            },
+            {
+              "value": "b",
+              "label": "B"
+            },
+            {
+              "value": "c",
+              "label": "C"
+            }
+          ]
+        }
+      ]
+    },
+    "input": {
+      "m": [
+        "a",
+        1
+      ]
+    },
+    "valid": false,
+    "errors": {
+      "m": [
+        "type"
+      ]
+    },
+    "output": {}
+  },
+  {
+    "name": "multiselect_element_not_an_option",
+    "definition": {
+      "fields": [
+        {
+          "id": "m",
+          "type": "multiselect",
+          "label": "M",
+          "required": false,
+          "options": [
+            {
+              "value": "a",
+              "label": "A"
+            },
+            {
+              "value": "b",
+              "label": "B"
+            },
+            {
+              "value": "c",
+              "label": "C"
+            }
+          ]
+        }
+      ]
+    },
+    "input": {
+      "m": [
+        "a",
+        "z"
+      ]
+    },
+    "valid": false,
+    "errors": {
+      "m": [
+        "option"
+      ]
+    },
+    "output": {}
+  },
+  {
+    "name": "radio_valid",
+    "definition": {
+      "fields": [
+        {
+          "id": "r",
+          "type": "radio",
+          "label": "R",
+          "required": false,
+          "options": [
+            {
+              "value": "a",
+              "label": "A"
+            },
+            {
+              "value": "b",
+              "label": "B"
+            },
+            {
+              "value": "c",
+              "label": "C"
+            }
+          ]
+        }
+      ]
+    },
+    "input": {
+      "r": "c"
+    },
+    "valid": true,
+    "errors": {},
+    "output": {
+      "r": "c"
+    }
+  },
+  {
+    "name": "radio_wrong_type_bool",
+    "definition": {
+      "fields": [
+        {
+          "id": "r",
+          "type": "radio",
+          "label": "R",
+          "required": false,
+          "options": [
+            {
+              "value": "a",
+              "label": "A"
+            },
+            {
+              "value": "b",
+              "label": "B"
+            },
+            {
+              "value": "c",
+              "label": "C"
+            }
+          ]
+        }
+      ]
+    },
+    "input": {
+      "r": true
+    },
+    "valid": false,
+    "errors": {
+      "r": [
+        "type"
+      ]
+    },
+    "output": {}
+  },
+  {
+    "name": "radio_not_an_option",
+    "definition": {
+      "fields": [
+        {
+          "id": "r",
+          "type": "radio",
+          "label": "R",
+          "required": false,
+          "options": [
+            {
+              "value": "a",
+              "label": "A"
+            },
+            {
+              "value": "b",
+              "label": "B"
+            },
+            {
+              "value": "c",
+              "label": "C"
+            }
+          ]
+        }
+      ]
+    },
+    "input": {
+      "r": "z"
+    },
+    "valid": false,
+    "errors": {
+      "r": [
+        "option"
+      ]
+    },
+    "output": {}
+  },
+  {
+    "name": "checkbox_valid_true",
+    "definition": {
+      "fields": [
+        {
+          "id": "c",
+          "type": "checkbox",
+          "label": "C",
+          "required": false
+        }
+      ]
+    },
+    "input": {
+      "c": true
+    },
+    "valid": true,
+    "errors": {},
+    "output": {
+      "c": true
+    }
+  },
+  {
+    "name": "checkbox_valid_false",
+    "definition": {
+      "fields": [
+        {
+          "id": "c",
+          "type": "checkbox",
+          "label": "C",
+          "required": false
+        }
+      ]
+    },
+    "input": {
+      "c": false
+    },
+    "valid": true,
+    "errors": {},
+    "output": {
+      "c": false
+    }
+  },
+  {
+    "name": "checkbox_wrong_type_string",
+    "definition": {
+      "fields": [
+        {
+          "id": "c",
+          "type": "checkbox",
+          "label": "C",
+          "required": false
+        }
+      ]
+    },
+    "input": {
+      "c": "true"
+    },
+    "valid": false,
+    "errors": {
+      "c": [
+        "type"
+      ]
+    },
+    "output": {}
+  },
+  {
+    "name": "checkbox_wrong_type_number",
+    "definition": {
+      "fields": [
+        {
+          "id": "c",
+          "type": "checkbox",
+          "label": "C",
+          "required": false
+        }
+      ]
+    },
+    "input": {
+      "c": 1
+    },
+    "valid": false,
+    "errors": {
+      "c": [
+        "type"
+      ]
+    },
+    "output": {}
+  },
+  {
+    "name": "date_valid",
+    "definition": {
+      "fields": [
+        {
+          "id": "d",
+          "type": "date",
+          "label": "D",
+          "required": false
+        }
+      ]
+    },
+    "input": {
+      "d": "2026-02-28"
+    },
+    "valid": true,
+    "errors": {},
+    "output": {
+      "d": "2026-02-28"
+    }
+  },
+  {
+    "name": "date_valid_leap_day",
+    "definition": {
+      "fields": [
+        {
+          "id": "d",
+          "type": "date",
+          "label": "D",
+          "required": false
+        }
+      ]
+    },
+    "input": {
+      "d": "2024-02-29"
+    },
+    "valid": true,
+    "errors": {},
+    "output": {
+      "d": "2024-02-29"
+    }
+  },
+  {
+    "name": "date_invalid_feb_30",
+    "definition": {
+      "fields": [
+        {
+          "id": "d",
+          "type": "date",
+          "label": "D",
+          "required": false
+        }
+      ]
+    },
+    "input": {
+      "d": "2026-02-30"
+    },
+    "valid": false,
+    "errors": {
+      "d": [
+        "date"
+      ]
+    },
+    "output": {}
+  },
+  {
+    "name": "date_invalid_non_leap_feb_29",
+    "definition": {
+      "fields": [
+        {
+          "id": "d",
+          "type": "date",
+          "label": "D",
+          "required": false
+        }
+      ]
+    },
+    "input": {
+      "d": "2023-02-29"
+    },
+    "valid": false,
+    "errors": {
+      "d": [
+        "date"
+      ]
+    },
+    "output": {}
+  },
+  {
+    "name": "date_invalid_month_13",
+    "definition": {
+      "fields": [
+        {
+          "id": "d",
+          "type": "date",
+          "label": "D",
+          "required": false
+        }
+      ]
+    },
+    "input": {
+      "d": "2026-13-01"
+    },
+    "valid": false,
+    "errors": {
+      "d": [
+        "date"
+      ]
+    },
+    "output": {}
+  },
+  {
+    "name": "date_invalid_format_slashes",
+    "definition": {
+      "fields": [
+        {
+          "id": "d",
+          "type": "date",
+          "label": "D",
+          "required": false
+        }
+      ]
+    },
+    "input": {
+      "d": "28/02/2026"
+    },
+    "valid": false,
+    "errors": {
+      "d": [
+        "date"
+      ]
+    },
+    "output": {}
+  },
+  {
+    "name": "date_invalid_format_datetime",
+    "definition": {
+      "fields": [
+        {
+          "id": "d",
+          "type": "date",
+          "label": "D",
+          "required": false
+        }
+      ]
+    },
+    "input": {
+      "d": "2026-02-28T00:00:00Z"
+    },
+    "valid": false,
+    "errors": {
+      "d": [
+        "date"
+      ]
+    },
+    "output": {}
+  },
+  {
+    "name": "date_wrong_type_number",
+    "definition": {
+      "fields": [
+        {
+          "id": "d",
+          "type": "date",
+          "label": "D",
+          "required": false
+        }
+      ]
+    },
+    "input": {
+      "d": 20260228
+    },
+    "valid": false,
+    "errors": {
+      "d": [
+        "type"
+      ]
+    },
+    "output": {}
+  }
+]

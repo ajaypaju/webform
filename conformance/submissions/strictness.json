@@ -1,0 +1,628 @@
+[
+  {
+    "name": "numeric_string_for_number",
+    "definition": {
+      "fields": [
+        {
+          "id": "n",
+          "type": "number",
+          "label": "N",
+          "required": false
+        }
+      ]
+    },
+    "input": {
+      "n": "42"
+    },
+    "valid": false,
+    "errors": {
+      "n": [
+        "type"
+      ]
+    },
+    "output": {}
+  },
+  {
+    "name": "numeric_float_string_for_number",
+    "definition": {
+      "fields": [
+        {
+          "id": "n",
+          "type": "number",
+          "label": "N",
+          "required": false
+        }
+      ]
+    },
+    "input": {
+      "n": "4.5"
+    },
+    "valid": false,
+    "errors": {
+      "n": [
+        "type"
+      ]
+    },
+    "output": {}
+  },
+  {
+    "name": "whitespace_only_required_text",
+    "definition": {
+      "fields": [
+        {
+          "id": "name",
+          "type": "text",
+          "label": "Name",
+          "required": true
+        }
+      ]
+    },
+    "input": {
+      "name": "   "
+    },
+    "valid": false,
+    "errors": {
+      "name": [
+        "required"
+      ]
+    },
+    "output": {}
+  },
+  {
+    "name": "tab_and_newline_only_required_text",
+    "definition": {
+      "fields": [
+        {
+          "id": "name",
+          "type": "text",
+          "label": "Name",
+          "required": true
+        }
+      ]
+    },
+    "input": {
+      "name": "\t\n "
+    },
+    "valid": false,
+    "errors": {
+      "name": [
+        "required"
+      ]
+    },
+    "output": {}
+  },
+  {
+    "name": "text_is_trimmed",
+    "definition": {
+      "fields": [
+        {
+          "id": "name",
+          "type": "text",
+          "label": "Name",
+          "required": false
+        }
+      ]
+    },
+    "input": {
+      "name": "  Ada  "
+    },
+    "valid": true,
+    "errors": {},
+    "output": {
+      "name": "Ada"
+    }
+  },
+  {
+    "name": "email_is_trimmed",
+    "definition": {
+      "fields": [
+        {
+          "id": "email",
+          "type": "email",
+          "label": "Email",
+          "required": false
+        }
+      ]
+    },
+    "input": {
+      "email": "  ada@example.com\n"
+    },
+    "valid": true,
+    "errors": {},
+    "output": {
+      "email": "ada@example.com"
+    }
+  },
+  {
+    "name": "inner_whitespace_preserved",
+    "definition": {
+      "fields": [
+        {
+          "id": "name",
+          "type": "text",
+          "label": "Name",
+          "required": false
+        }
+      ]
+    },
+    "input": {
+      "name": "Ada  Lovelace"
+    },
+    "valid": true,
+    "errors": {},
+    "output": {
+      "name": "Ada  Lovelace"
+    }
+  },
+  {
+    "name": "unknown_field",
+    "definition": {
+      "fields": [
+        {
+          "id": "name",
+          "type": "text",
+          "label": "Name",
+          "required": false
+        }
+      ]
+    },
+    "input": {
+      "name": "Ada",
+      "nope": "x"
+    },
+    "valid": false,
+    "errors": {
+      "nope": [
+        "unknown_field"
+      ]
+    },
+    "output": {}
+  },
+  {
+    "name": "unknown_field_only",
+    "definition": {
+      "fields": [
+        {
+          "id": "name",
+          "type": "text",
+          "label": "Name",
+          "required": false
+        }
+      ]
+    },
+    "input": {
+      "nope": "x"
+    },
+    "valid": false,
+    "errors": {
+      "nope": [
+        "unknown_field"
+      ]
+    },
+    "output": {}
+  },
+  {
+    "name": "unknown_field_with_null_value_still_unknown",
+    "definition": {
+      "fields": [
+        {
+          "id": "name",
+          "type": "text",
+          "label": "Name",
+          "required": false
+        }
+      ]
+    },
+    "input": {
+      "nope": null
+    },
+    "valid": false,
+    "errors": {
+      "nope": [
+        "unknown_field"
+      ]
+    },
+    "output": {}
+  },
+  {
+    "name": "unknown_field_and_other_error_both_reported",
+    "definition": {
+      "fields": [
+        {
+          "id": "name",
+          "type": "text",
+          "label": "Name",
+          "required": true
+        }
+      ]
+    },
+    "input": {
+      "nope": "x"
+    },
+    "valid": false,
+    "errors": {
+      "name": [
+        "required"
+      ],
+      "nope": [
+        "unknown_field"
+      ]
+    },
+    "output": {}
+  },
+  {
+    "name": "unknown_field_case_differs_from_known_id",
+    "definition": {
+      "fields": [
+        {
+          "id": "name",
+          "type": "text",
+          "label": "Name",
+          "required": false
+        }
+      ]
+    },
+    "input": {
+      "Name": "Ada"
+    },
+    "valid": false,
+    "errors": {
+      "Name": [
+        "unknown_field"
+      ]
+    },
+    "output": {}
+  },
+  {
+    "name": "boolean_string_for_checkbox",
+    "definition": {
+      "fields": [
+        {
+          "id": "c",
+          "type": "checkbox",
+          "label": "C",
+          "required": false
+        }
+      ]
+    },
+    "input": {
+      "c": "true"
+    },
+    "valid": false,
+    "errors": {
+      "c": [
+        "type"
+      ]
+    },
+    "output": {}
+  },
+  {
+    "name": "number_one_for_checkbox",
+    "definition": {
+      "fields": [
+        {
+          "id": "c",
+          "type": "checkbox",
+          "label": "C",
+          "required": false
+        }
+      ]
+    },
+    "input": {
+      "c": 1
+    },
+    "valid": false,
+    "errors": {
+      "c": [
+        "type"
+      ]
+    },
+    "output": {}
+  },
+  {
+    "name": "string_for_multiselect_even_if_option",
+    "definition": {
+      "fields": [
+        {
+          "id": "m",
+          "type": "multiselect",
+          "label": "M",
+          "required": false,
+          "options": [
+            {
+              "value": "a",
+              "label": "A"
+            },
+            {
+              "value": "b",
+              "label": "B"
+            },
+            {
+              "value": "c",
+              "label": "C"
+            }
+          ]
+        }
+      ]
+    },
+    "input": {
+      "m": "a"
+    },
+    "valid": false,
+    "errors": {
+      "m": [
+        "type"
+      ]
+    },
+    "output": {}
+  },
+  {
+    "name": "empty_input_all_optional",
+    "definition": {
+      "fields": [
+        {
+          "id": "a",
+          "type": "text",
+          "label": "A",
+          "required": false
+        },
+        {
+          "id": "b",
+          "type": "number",
+          "label": "B",
+          "required": false
+        }
+      ]
+    },
+    "input": {},
+    "valid": true,
+    "errors": {},
+    "output": {}
+  },
+  {
+    "name": "output_only_contains_provided_fields",
+    "definition": {
+      "fields": [
+        {
+          "id": "name",
+          "type": "text",
+          "label": "Name",
+          "required": true
+        },
+        {
+          "id": "age",
+          "type": "number",
+          "label": "Age",
+          "required": false
+        },
+        {
+          "id": "ok",
+          "type": "checkbox",
+          "label": "Ok",
+          "required": false
+        }
+      ]
+    },
+    "input": {
+      "name": "Ada"
+    },
+    "valid": true,
+    "errors": {},
+    "output": {
+      "name": "Ada"
+    }
+  },
+  {
+    "name": "output_preserves_definition_order",
+    "definition": {
+      "fields": [
+        {
+          "id": "name",
+          "type": "text",
+          "label": "Name",
+          "required": true
+        },
+        {
+          "id": "age",
+          "type": "number",
+          "label": "Age",
+          "required": false
+        },
+        {
+          "id": "ok",
+          "type": "checkbox",
+          "label": "Ok",
+          "required": false
+        }
+      ]
+    },
+    "input": {
+      "ok": true,
+      "age": 36,
+      "name": "Ada"
+    },
+    "valid": true,
+    "errors": {},
+    "output": {
+      "name": "Ada",
+      "age": 36,
+      "ok": true
+    }
+  },
+  {
+    "name": "output_float_stays_float",
+    "definition": {
+      "fields": [
+        {
+          "id": "n",
+          "type": "number",
+          "label": "N",
+          "required": false
+        }
+      ]
+    },
+    "input": {
+      "n": 2.5
+    },
+    "valid": true,
+    "errors": {},
+    "output": {
+      "n": 2.5
+    }
+  },
+  {
+    "name": "output_integer_stays_integer",
+    "definition": {
+      "fields": [
+        {
+          "id": "n",
+          "type": "number",
+          "label": "N",
+          "required": false
+        }
+      ]
+    },
+    "input": {
+      "n": 2
+    },
+    "valid": true,
+    "errors": {},
+    "output": {
+      "n": 2
+    }
+  },
+  {
+    "name": "nbsp_only_required_text",
+    "definition": {
+      "fields": [
+        {
+          "id": "name",
+          "type": "text",
+          "label": "Name",
+          "required": true
+        }
+      ]
+    },
+    "input": {
+      "name": " "
+    },
+    "valid": false,
+    "errors": {
+      "name": [
+        "required"
+      ]
+    },
+    "output": {}
+  },
+  {
+    "name": "ideographic_space_only_required_text",
+    "definition": {
+      "fields": [
+        {
+          "id": "name",
+          "type": "text",
+          "label": "Name",
+          "required": true
+        }
+      ]
+    },
+    "input": {
+      "name": "　　"
+    },
+    "valid": false,
+    "errors": {
+      "name": [
+        "required"
+      ]
+    },
+    "output": {}
+  },
+  {
+    "name": "line_separator_only_required_text",
+    "definition": {
+      "fields": [
+        {
+          "id": "name",
+          "type": "text",
+          "label": "Name",
+          "required": true
+        }
+      ]
+    },
+    "input": {
+      "name": " "
+    },
+    "valid": false,
+    "errors": {
+      "name": [
+        "required"
+      ]
+    },
+    "output": {}
+  },
+  {
+    "name": "bom_only_required_text",
+    "definition": {
+      "fields": [
+        {
+          "id": "name",
+          "type": "text",
+          "label": "Name",
+          "required": true
+        }
+      ]
+    },
+    "input": {
+      "name": "﻿"
+    },
+    "valid": false,
+    "errors": {
+      "name": [
+        "required"
+      ]
+    },
+    "output": {}
+  },
+  {
+    "name": "trim_strips_nbsp_and_ideographic_space",
+    "definition": {
+      "fields": [
+        {
+          "id": "name",
+          "type": "text",
+          "label": "Name",
+          "required": false
+        }
+      ]
+    },
+    "input": {
+      "name": " 　Ada　 "
+    },
+    "valid": true,
+    "errors": {},
+    "output": {
+      "name": "Ada"
+    }
+  },
+  {
+    "name": "zero_width_space_is_not_trimmed",
+    "definition": {
+      "fields": [
+        {
+          "id": "name",
+          "type": "text",
+          "label": "Name",
+          "required": true
+        }
+      ]
+    },
+    "input": {
+      "name": "​"
+    },
+    "valid": true,
+    "errors": {},
+    "output": {
+      "name": "​"
+    }
+  }
+]

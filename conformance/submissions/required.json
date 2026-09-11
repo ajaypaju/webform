@@ -1,0 +1,625 @@
+[
+  {
+    "name": "required_text_missing",
+    "definition": {
+      "fields": [
+        {
+          "id": "name",
+          "type": "text",
+          "label": "Name",
+          "required": true
+        }
+      ]
+    },
+    "input": {},
+    "valid": false,
+    "errors": {
+      "name": [
+        "required"
+      ]
+    },
+    "output": {}
+  },
+  {
+    "name": "required_text_null",
+    "definition": {
+      "fields": [
+        {
+          "id": "name",
+          "type": "text",
+          "label": "Name",
+          "required": true
+        }
+      ]
+    },
+    "input": {
+      "name": null
+    },
+    "valid": false,
+    "errors": {
+      "name": [
+        "required"
+      ]
+    },
+    "output": {}
+  },
+  {
+    "name": "required_text_empty_string",
+    "definition": {
+      "fields": [
+        {
+          "id": "name",
+          "type": "text",
+          "label": "Name",
+          "required": true
+        }
+      ]
+    },
+    "input": {
+      "name": ""
+    },
+    "valid": false,
+    "errors": {
+      "name": [
+        "required"
+      ]
+    },
+    "output": {}
+  },
+  {
+    "name": "required_text_present",
+    "definition": {
+      "fields": [
+        {
+          "id": "name",
+          "type": "text",
+          "label": "Name",
+          "required": true
+        }
+      ]
+    },
+    "input": {
+      "name": "Ada"
+    },
+    "valid": true,
+    "errors": {},
+    "output": {
+      "name": "Ada"
+    }
+  },
+  {
+    "name": "optional_text_missing",
+    "definition": {
+      "fields": [
+        {
+          "id": "name",
+          "type": "text",
+          "label": "Name",
+          "required": false
+        }
+      ]
+    },
+    "input": {},
+    "valid": true,
+    "errors": {},
+    "output": {}
+  },
+  {
+    "name": "optional_text_null_dropped",
+    "definition": {
+      "fields": [
+        {
+          "id": "name",
+          "type": "text",
+          "label": "Name",
+          "required": false
+        }
+      ]
+    },
+    "input": {
+      "name": null
+    },
+    "valid": true,
+    "errors": {},
+    "output": {}
+  },
+  {
+    "name": "optional_text_empty_string_dropped",
+    "definition": {
+      "fields": [
+        {
+          "id": "name",
+          "type": "text",
+          "label": "Name",
+          "required": false
+        }
+      ]
+    },
+    "input": {
+      "name": ""
+    },
+    "valid": true,
+    "errors": {},
+    "output": {}
+  },
+  {
+    "name": "optional_text_whitespace_only_dropped",
+    "definition": {
+      "fields": [
+        {
+          "id": "name",
+          "type": "text",
+          "label": "Name",
+          "required": false
+        }
+      ]
+    },
+    "input": {
+      "name": "   "
+    },
+    "valid": true,
+    "errors": {},
+    "output": {}
+  },
+  {
+    "name": "required_checkbox_true",
+    "definition": {
+      "fields": [
+        {
+          "id": "consent",
+          "type": "checkbox",
+          "label": "Consent",
+          "required": true
+        }
+      ]
+    },
+    "input": {
+      "consent": true
+    },
+    "valid": true,
+    "errors": {},
+    "output": {
+      "consent": true
+    }
+  },
+  {
+    "name": "required_checkbox_false",
+    "definition": {
+      "fields": [
+        {
+          "id": "consent",
+          "type": "checkbox",
+          "label": "Consent",
+          "required": true
+        }
+      ]
+    },
+    "input": {
+      "consent": false
+    },
+    "valid": false,
+    "errors": {
+      "consent": [
+        "required"
+      ]
+    },
+    "output": {}
+  },
+  {
+    "name": "required_checkbox_missing",
+    "definition": {
+      "fields": [
+        {
+          "id": "consent",
+          "type": "checkbox",
+          "label": "Consent",
+          "required": true
+        }
+      ]
+    },
+    "input": {},
+    "valid": false,
+    "errors": {
+      "consent": [
+        "required"
+      ]
+    },
+    "output": {}
+  },
+  {
+    "name": "optional_checkbox_false_stored",
+    "definition": {
+      "fields": [
+        {
+          "id": "c",
+          "type": "checkbox",
+          "label": "C",
+          "required": false
+        }
+      ]
+    },
+    "input": {
+      "c": false
+    },
+    "valid": true,
+    "errors": {},
+    "output": {
+      "c": false
+    }
+  },
+  {
+    "name": "optional_checkbox_missing",
+    "definition": {
+      "fields": [
+        {
+          "id": "c",
+          "type": "checkbox",
+          "label": "C",
+          "required": false
+        }
+      ]
+    },
+    "input": {},
+    "valid": true,
+    "errors": {},
+    "output": {}
+  },
+  {
+    "name": "required_multiselect_empty_array",
+    "definition": {
+      "fields": [
+        {
+          "id": "m",
+          "type": "multiselect",
+          "label": "M",
+          "required": true,
+          "options": [
+            {
+              "value": "a",
+              "label": "A"
+            },
+            {
+              "value": "b",
+              "label": "B"
+            },
+            {
+              "value": "c",
+              "label": "C"
+            }
+          ]
+        }
+      ]
+    },
+    "input": {
+      "m": []
+    },
+    "valid": false,
+    "errors": {
+      "m": [
+        "required"
+      ]
+    },
+    "output": {}
+  },
+  {
+    "name": "required_multiselect_missing",
+    "definition": {
+      "fields": [
+        {
+          "id": "m",
+          "type": "multiselect",
+          "label": "M",
+          "required": true,
+          "options": [
+            {
+              "value": "a",
+              "label": "A"
+            },
+            {
+              "value": "b",
+              "label": "B"
+            },
+            {
+              "value": "c",
+              "label": "C"
+            }
+          ]
+        }
+      ]
+    },
+    "input": {},
+    "valid": false,
+    "errors": {
+      "m": [
+        "required"
+      ]
+    },
+    "output": {}
+  },
+  {
+    "name": "optional_multiselect_empty_array_dropped",
+    "definition": {
+      "fields": [
+        {
+          "id": "m",
+          "type": "multiselect",
+          "label": "M",
+          "required": false,
+          "options": [
+            {
+              "value": "a",
+              "label": "A"
+            },
+            {
+              "value": "b",
+              "label": "B"
+            },
+            {
+              "value": "c",
+              "label": "C"
+            }
+          ]
+        }
+      ]
+    },
+    "input": {
+      "m": []
+    },
+    "valid": true,
+    "errors": {},
+    "output": {}
+  },
+  {
+    "name": "required_number_zero_is_provided",
+    "definition": {
+      "fields": [
+        {
+          "id": "n",
+          "type": "number",
+          "label": "N",
+          "required": true
+        }
+      ]
+    },
+    "input": {
+      "n": 0
+    },
+    "valid": true,
+    "errors": {},
+    "output": {
+      "n": 0
+    }
+  },
+  {
+    "name": "required_number_missing",
+    "definition": {
+      "fields": [
+        {
+          "id": "n",
+          "type": "number",
+          "label": "N",
+          "required": true
+        }
+      ]
+    },
+    "input": {},
+    "valid": false,
+    "errors": {
+      "n": [
+        "required"
+      ]
+    },
+    "output": {}
+  },
+  {
+    "name": "required_number_null",
+    "definition": {
+      "fields": [
+        {
+          "id": "n",
+          "type": "number",
+          "label": "N",
+          "required": true
+        }
+      ]
+    },
+    "input": {
+      "n": null
+    },
+    "valid": false,
+    "errors": {
+      "n": [
+        "required"
+      ]
+    },
+    "output": {}
+  },
+  {
+    "name": "required_select_missing",
+    "definition": {
+      "fields": [
+        {
+          "id": "s",
+          "type": "select",
+          "label": "S",
+          "required": true,
+          "options": [
+            {
+              "value": "a",
+              "label": "A"
+            },
+            {
+              "value": "b",
+              "label": "B"
+            },
+            {
+              "value": "c",
+              "label": "C"
+            }
+          ]
+        }
+      ]
+    },
+    "input": {},
+    "valid": false,
+    "errors": {
+      "s": [
+        "required"
+      ]
+    },
+    "output": {}
+  },
+  {
+    "name": "required_radio_empty_string",
+    "definition": {
+      "fields": [
+        {
+          "id": "r",
+          "type": "radio",
+          "label": "R",
+          "required": true,
+          "options": [
+            {
+              "value": "a",
+              "label": "A"
+            },
+            {
+              "value": "b",
+              "label": "B"
+            },
+            {
+              "value": "c",
+              "label": "C"
+            }
+          ]
+        }
+      ]
+    },
+    "input": {
+      "r": ""
+    },
+    "valid": false,
+    "errors": {
+      "r": [
+        "required"
+      ]
+    },
+    "output": {}
+  },
+  {
+    "name": "required_date_missing",
+    "definition": {
+      "fields": [
+        {
+          "id": "d",
+          "type": "date",
+          "label": "D",
+          "required": true
+        }
+      ]
+    },
+    "input": {},
+    "valid": false,
+    "errors": {
+      "d": [
+        "required"
+      ]
+    },
+    "output": {}
+  },
+  {
+    "name": "required_email_missing",
+    "definition": {
+      "fields": [
+        {
+          "id": "email",
+          "type": "email",
+          "label": "Email",
+          "required": true
+        }
+      ]
+    },
+    "input": {},
+    "valid": false,
+    "errors": {
+      "email": [
+        "required"
+      ]
+    },
+    "output": {}
+  },
+  {
+    "name": "optional_email_missing",
+    "definition": {
+      "fields": [
+        {
+          "id": "email",
+          "type": "email",
+          "label": "Email",
+          "required": false
+        }
+      ]
+    },
+    "input": {},
+    "valid": true,
+    "errors": {},
+    "output": {}
+  },
+  {
+    "name": "required_two_fields_both_missing",
+    "definition": {
+      "fields": [
+        {
+          "id": "a",
+          "type": "text",
+          "label": "A",
+          "required": true
+        },
+        {
+          "id": "b",
+          "type": "number",
+          "label": "B",
+          "required": true
+        }
+      ]
+    },
+    "input": {},
+    "valid": false,
+    "errors": {
+      "a": [
+        "required"
+      ],
+      "b": [
+        "required"
+      ]
+    },
+    "output": {}
+  },
+  {
+    "name": "mixed_required_and_optional",
+    "definition": {
+      "fields": [
+        {
+          "id": "a",
+          "type": "text",
+          "label": "A",
+          "required": true
+        },
+        {
+          "id": "b",
+          "type": "number",
+          "label": "B",
+          "required": false
+        }
+      ]
+    },
+    "input": {
+      "a": "x"
+    },
+    "valid": true,
+    "errors": {},
+    "output": {
+      "a": "x"
+    }
+  }
+]

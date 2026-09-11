@@ -1,0 +1,245 @@
+[
+  {
+    "name": "valid_ids",
+    "definition": {
+      "fields": [
+        {
+          "id": "email",
+          "type": "email",
+          "label": "Email",
+          "required": false
+        },
+        {
+          "id": "first_name",
+          "type": "text",
+          "label": "First Name",
+          "required": false
+        },
+        {
+          "id": "q1",
+          "type": "number",
+          "label": "Q1",
+          "required": false
+        },
+        {
+          "id": "_x",
+          "type": "text",
+          "label": " X",
+          "required": false
+        },
+        {
+          "id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "type": "text",
+          "label": "Aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "required": false
+        }
+      ]
+    },
+    "valid": true,
+    "errors": []
+  },
+  {
+    "name": "id_with_dot",
+    "definition": {
+      "fields": [
+        {
+          "id": "first.name",
+          "type": "text",
+          "label": "First.Name",
+          "required": false
+        }
+      ]
+    },
+    "valid": false,
+    "errors": [
+      "field_id"
+    ]
+  },
+  {
+    "name": "id_with_star",
+    "definition": {
+      "fields": [
+        {
+          "id": "items*",
+          "type": "text",
+          "label": "Items*",
+          "required": false
+        }
+      ]
+    },
+    "valid": false,
+    "errors": [
+      "field_id"
+    ]
+  },
+  {
+    "name": "id_uppercase",
+    "definition": {
+      "fields": [
+        {
+          "id": "Email",
+          "type": "text",
+          "label": "Email",
+          "required": false
+        }
+      ]
+    },
+    "valid": false,
+    "errors": [
+      "field_id"
+    ]
+  },
+  {
+    "name": "id_with_hyphen",
+    "definition": {
+      "fields": [
+        {
+          "id": "first-name",
+          "type": "text",
+          "label": "First-Name",
+          "required": false
+        }
+      ]
+    },
+    "valid": false,
+    "errors": [
+      "field_id"
+    ]
+  },
+  {
+    "name": "id_with_space",
+    "definition": {
+      "fields": [
+        {
+          "id": "first name",
+          "type": "text",
+          "label": "First Name",
+          "required": false
+        }
+      ]
+    },
+    "valid": false,
+    "errors": [
+      "field_id"
+    ]
+  },
+  {
+    "name": "id_empty",
+    "definition": {
+      "fields": [
+        {
+          "id": "",
+          "type": "text",
+          "label": "",
+          "required": false
+        }
+      ]
+    },
+    "valid": false,
+    "errors": [
+      "field_id"
+    ]
+  },
+  {
+    "name": "id_41_chars",
+    "definition": {
+      "fields": [
+        {
+          "id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "type": "text",
+          "label": "Aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "required": false
+        }
+      ]
+    },
+    "valid": false,
+    "errors": [
+      "field_id"
+    ]
+  },
+  {
+    "name": "id_missing",
+    "definition": {
+      "fields": [
+        {
+          "type": "text",
+          "label": "No id",
+          "required": false
+        }
+      ]
+    },
+    "valid": false,
+    "errors": [
+      "field_id"
+    ]
+  },
+  {
+    "name": "id_not_a_string",
+    "definition": {
+      "fields": [
+        {
+          "id": 5,
+          "type": "text",
+          "label": "Five",
+          "required": false
+        }
+      ]
+    },
+    "valid": false,
+    "errors": [
+      "field_id"
+    ]
+  },
+  {
+    "name": "duplicate_ids",
+    "definition": {
+      "fields": [
+        {
+          "id": "email",
+          "type": "email",
+          "label": "Email",
+          "required": false
+        },
+        {
+          "id": "email",
+          "type": "text",
+          "label": "Email",
+          "required": false
+        }
+      ]
+    },
+    "valid": false,
+    "errors": [
+      "duplicate_id"
+    ]
+  },
+  {
+    "name": "duplicate_ids_three_fields",
+    "definition": {
+      "fields": [
+        {
+          "id": "a",
+          "type": "text",
+          "label": "A",
+          "required": false
+        },
+        {
+          "id": "b",
+          "type": "text",
+          "label": "B",
+          "required": false
+        },
+        {
+          "id": "a",
+          "type": "number",
+          "label": "A",
+          "required": false
+        }
+      ]
+    },
+    "valid": false,
+    "errors": [
+      "duplicate_id"
+    ]
+  }
+]

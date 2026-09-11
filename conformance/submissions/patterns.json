@@ -1,0 +1,373 @@
+[
+  {
+    "name": "pattern_matches",
+    "definition": {
+      "fields": [
+        {
+          "id": "t",
+          "type": "text",
+          "label": "T",
+          "required": false,
+          "rules": {
+            "pattern": "^[A-Z]{3}$"
+          }
+        }
+      ]
+    },
+    "input": {
+      "t": "ABC"
+    },
+    "valid": true,
+    "errors": {},
+    "output": {
+      "t": "ABC"
+    }
+  },
+  {
+    "name": "pattern_does_not_match",
+    "definition": {
+      "fields": [
+        {
+          "id": "t",
+          "type": "text",
+          "label": "T",
+          "required": false,
+          "rules": {
+            "pattern": "^[A-Z]{3}$"
+          }
+        }
+      ]
+    },
+    "input": {
+      "t": "abc"
+    },
+    "valid": false,
+    "errors": {
+      "t": [
+        "pattern"
+      ]
+    },
+    "output": {}
+  },
+  {
+    "name": "pattern_is_unanchored_unless_author_anchors",
+    "definition": {
+      "fields": [
+        {
+          "id": "t",
+          "type": "text",
+          "label": "T",
+          "required": false,
+          "rules": {
+            "pattern": "[0-9]"
+          }
+        }
+      ]
+    },
+    "input": {
+      "t": "abc1"
+    },
+    "valid": true,
+    "errors": {},
+    "output": {
+      "t": "abc1"
+    }
+  },
+  {
+    "name": "pattern_search_semantics_b_matches_abc",
+    "definition": {
+      "fields": [
+        {
+          "id": "t",
+          "type": "text",
+          "label": "T",
+          "required": false,
+          "rules": {
+            "pattern": "b"
+          }
+        }
+      ]
+    },
+    "input": {
+      "t": "abc"
+    },
+    "valid": true,
+    "errors": {},
+    "output": {
+      "t": "abc"
+    }
+  },
+  {
+    "name": "pattern_anchored_rejects_partial",
+    "definition": {
+      "fields": [
+        {
+          "id": "t",
+          "type": "text",
+          "label": "T",
+          "required": false,
+          "rules": {
+            "pattern": "^[0-9]$"
+          }
+        }
+      ]
+    },
+    "input": {
+      "t": "abc1"
+    },
+    "valid": false,
+    "errors": {
+      "t": [
+        "pattern"
+      ]
+    },
+    "output": {}
+  },
+  {
+    "name": "pattern_applied_after_trim",
+    "definition": {
+      "fields": [
+        {
+          "id": "t",
+          "type": "text",
+          "label": "T",
+          "required": false,
+          "rules": {
+            "pattern": "^[A-Z]{3}$"
+          }
+        }
+      ]
+    },
+    "input": {
+      "t": "  ABC "
+    },
+    "valid": true,
+    "errors": {},
+    "output": {
+      "t": "ABC"
+    }
+  },
+  {
+    "name": "pattern_not_applied_when_optional_and_empty",
+    "definition": {
+      "fields": [
+        {
+          "id": "t",
+          "type": "text",
+          "label": "T",
+          "required": false,
+          "rules": {
+            "pattern": "^[A-Z]{3}$"
+          }
+        }
+      ]
+    },
+    "input": {
+      "t": ""
+    },
+    "valid": true,
+    "errors": {},
+    "output": {}
+  },
+  {
+    "name": "pattern_required_and_empty_is_required_not_pattern",
+    "definition": {
+      "fields": [
+        {
+          "id": "t",
+          "type": "text",
+          "label": "T",
+          "required": true,
+          "rules": {
+            "pattern": "^[A-Z]{3}$"
+          }
+        }
+      ]
+    },
+    "input": {
+      "t": ""
+    },
+    "valid": false,
+    "errors": {
+      "t": [
+        "required"
+      ]
+    },
+    "output": {}
+  },
+  {
+    "name": "pattern_with_escaped_dot",
+    "definition": {
+      "fields": [
+        {
+          "id": "t",
+          "type": "text",
+          "label": "T",
+          "required": false,
+          "rules": {
+            "pattern": "^a\\.b$"
+          }
+        }
+      ]
+    },
+    "input": {
+      "t": "a.b"
+    },
+    "valid": true,
+    "errors": {},
+    "output": {
+      "t": "a.b"
+    }
+  },
+  {
+    "name": "pattern_with_escaped_dot_rejects_other_char",
+    "definition": {
+      "fields": [
+        {
+          "id": "t",
+          "type": "text",
+          "label": "T",
+          "required": false,
+          "rules": {
+            "pattern": "^a\\.b$"
+          }
+        }
+      ]
+    },
+    "input": {
+      "t": "axb"
+    },
+    "valid": false,
+    "errors": {
+      "t": [
+        "pattern"
+      ]
+    },
+    "output": {}
+  },
+  {
+    "name": "pattern_character_class_and_quantifier",
+    "definition": {
+      "fields": [
+        {
+          "id": "t",
+          "type": "text",
+          "label": "T",
+          "required": false,
+          "rules": {
+            "pattern": "^[a-z]+-[0-9]{2,4}$"
+          }
+        }
+      ]
+    },
+    "input": {
+      "t": "abc-123"
+    },
+    "valid": true,
+    "errors": {},
+    "output": {
+      "t": "abc-123"
+    }
+  },
+  {
+    "name": "pattern_alternation",
+    "definition": {
+      "fields": [
+        {
+          "id": "t",
+          "type": "text",
+          "label": "T",
+          "required": false,
+          "rules": {
+            "pattern": "^(cat|dog)$"
+          }
+        }
+      ]
+    },
+    "input": {
+      "t": "dog"
+    },
+    "valid": true,
+    "errors": {},
+    "output": {
+      "t": "dog"
+    }
+  },
+  {
+    "name": "pattern_alternation_rejects",
+    "definition": {
+      "fields": [
+        {
+          "id": "t",
+          "type": "text",
+          "label": "T",
+          "required": false,
+          "rules": {
+            "pattern": "^(cat|dog)$"
+          }
+        }
+      ]
+    },
+    "input": {
+      "t": "cow"
+    },
+    "valid": false,
+    "errors": {
+      "t": [
+        "pattern"
+      ]
+    },
+    "output": {}
+  },
+  {
+    "name": "redos_nested_quantifier_fails_fast_with_pattern_code",
+    "definition": {
+      "fields": [
+        {
+          "id": "t",
+          "type": "text",
+          "label": "T",
+          "required": false,
+          "rules": {
+            "pattern": "^(a+)+$"
+          }
+        }
+      ]
+    },
+    "input": {
+      "t": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa!"
+    },
+    "valid": false,
+    "errors": {
+      "t": [
+        "pattern"
+      ]
+    },
+    "output": {}
+  },
+  {
+    "name": "pattern_with_max_length_both_satisfied",
+    "definition": {
+      "fields": [
+        {
+          "id": "t",
+          "type": "text",
+          "label": "T",
+          "required": false,
+          "rules": {
+            "pattern": "^[a-z]+$",
+            "max_length": 5
+          }
+        }
+      ]
+    },
+    "input": {
+      "t": "abcde"
+    },
+    "valid": true,
+    "errors": {},
+    "output": {
+      "t": "abcde"
+    }
+  }
+]

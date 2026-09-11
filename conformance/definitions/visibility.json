@@ -1,0 +1,246 @@
+[
+  {
+    "name": "visible_if_references_earlier_field",
+    "definition": {
+      "fields": [
+        {
+          "id": "a",
+          "type": "select",
+          "label": "A",
+          "required": false,
+          "options": [
+            {
+              "value": "yes",
+              "label": "YES"
+            },
+            {
+              "value": "no",
+              "label": "NO"
+            }
+          ]
+        },
+        {
+          "id": "b",
+          "type": "text",
+          "label": "B",
+          "required": false,
+          "visible_if": {
+            "field": "a",
+            "op": "eq",
+            "value": "yes"
+          }
+        }
+      ]
+    },
+    "valid": true,
+    "errors": []
+  },
+  {
+    "name": "visible_if_chain",
+    "definition": {
+      "fields": [
+        {
+          "id": "a",
+          "type": "select",
+          "label": "A",
+          "required": true,
+          "options": [
+            {
+              "value": "yes",
+              "label": "YES"
+            },
+            {
+              "value": "no",
+              "label": "NO"
+            }
+          ]
+        },
+        {
+          "id": "b",
+          "type": "text",
+          "label": "B",
+          "required": true,
+          "visible_if": {
+            "field": "a",
+            "op": "eq",
+            "value": "yes"
+          }
+        },
+        {
+          "id": "c",
+          "type": "text",
+          "label": "C",
+          "required": true,
+          "visible_if": {
+            "field": "b",
+            "op": "eq",
+            "value": "deep"
+          }
+        }
+      ]
+    },
+    "valid": true,
+    "errors": []
+  },
+  {
+    "name": "visible_if_references_unknown_field",
+    "definition": {
+      "fields": [
+        {
+          "id": "a",
+          "type": "text",
+          "label": "A",
+          "required": false
+        },
+        {
+          "id": "b",
+          "type": "text",
+          "label": "B",
+          "required": false,
+          "visible_if": {
+            "field": "zzz",
+            "op": "eq",
+            "value": "x"
+          }
+        }
+      ]
+    },
+    "valid": false,
+    "errors": [
+      "visible_if_field"
+    ]
+  },
+  {
+    "name": "visible_if_references_later_field",
+    "definition": {
+      "fields": [
+        {
+          "id": "a",
+          "type": "text",
+          "label": "A",
+          "required": false,
+          "visible_if": {
+            "field": "b",
+            "op": "eq",
+            "value": "x"
+          }
+        },
+        {
+          "id": "b",
+          "type": "text",
+          "label": "B",
+          "required": false
+        }
+      ]
+    },
+    "valid": false,
+    "errors": [
+      "visible_if_order"
+    ]
+  },
+  {
+    "name": "visible_if_references_itself",
+    "definition": {
+      "fields": [
+        {
+          "id": "a",
+          "type": "text",
+          "label": "A",
+          "required": false,
+          "visible_if": {
+            "field": "a",
+            "op": "eq",
+            "value": "x"
+          }
+        }
+      ]
+    },
+    "valid": false,
+    "errors": [
+      "visible_if_order"
+    ]
+  },
+  {
+    "name": "visible_if_unknown_op",
+    "definition": {
+      "fields": [
+        {
+          "id": "a",
+          "type": "text",
+          "label": "A",
+          "required": false
+        },
+        {
+          "id": "b",
+          "type": "text",
+          "label": "B",
+          "required": false,
+          "visible_if": {
+            "field": "a",
+            "op": "gt",
+            "value": "x"
+          }
+        }
+      ]
+    },
+    "valid": false,
+    "errors": [
+      "visible_if_op"
+    ]
+  },
+  {
+    "name": "visible_if_in_requires_array_value",
+    "definition": {
+      "fields": [
+        {
+          "id": "a",
+          "type": "text",
+          "label": "A",
+          "required": false
+        },
+        {
+          "id": "b",
+          "type": "text",
+          "label": "B",
+          "required": false,
+          "visible_if": {
+            "field": "a",
+            "op": "in",
+            "value": "x"
+          }
+        }
+      ]
+    },
+    "valid": false,
+    "errors": [
+      "visible_if_value"
+    ]
+  },
+  {
+    "name": "visible_if_missing_field_key",
+    "definition": {
+      "fields": [
+        {
+          "id": "a",
+          "type": "text",
+          "label": "A",
+          "required": false
+        },
+        {
+          "id": "b",
+          "type": "text",
+          "label": "B",
+          "required": false,
+          "visible_if": {
+            "op": "eq",
+            "value": "x"
+          }
+        }
+      ]
+    },
+    "valid": false,
+    "errors": [
+      "visible_if_field"
+    ]
+  }
+]

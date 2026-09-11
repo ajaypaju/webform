@@ -1,0 +1,494 @@
+[
+  {
+    "name": "pattern_simple",
+    "definition": {
+      "fields": [
+        {
+          "id": "t",
+          "type": "text",
+          "label": "T",
+          "required": false,
+          "rules": {
+            "pattern": "^[A-Z]{3}$"
+          }
+        }
+      ]
+    },
+    "valid": true,
+    "errors": []
+  },
+  {
+    "name": "pattern_alternation_and_classes",
+    "definition": {
+      "fields": [
+        {
+          "id": "t",
+          "type": "text",
+          "label": "T",
+          "required": false,
+          "rules": {
+            "pattern": "^(cat|dog)-[0-9]{2,4}$"
+          }
+        }
+      ]
+    },
+    "valid": true,
+    "errors": []
+  },
+  {
+    "name": "pattern_backreference",
+    "definition": {
+      "fields": [
+        {
+          "id": "t",
+          "type": "text",
+          "label": "T",
+          "required": false,
+          "rules": {
+            "pattern": "^(a)\\1$"
+          }
+        }
+      ]
+    },
+    "valid": false,
+    "errors": [
+      "pattern_unsafe"
+    ]
+  },
+  {
+    "name": "pattern_named_backreference",
+    "definition": {
+      "fields": [
+        {
+          "id": "t",
+          "type": "text",
+          "label": "T",
+          "required": false,
+          "rules": {
+            "pattern": "^(?<x>a)\\k<x>$"
+          }
+        }
+      ]
+    },
+    "valid": false,
+    "errors": [
+      "pattern_unsafe"
+    ]
+  },
+  {
+    "name": "pattern_lookahead",
+    "definition": {
+      "fields": [
+        {
+          "id": "t",
+          "type": "text",
+          "label": "T",
+          "required": false,
+          "rules": {
+            "pattern": "^(?=.*[0-9]).+$"
+          }
+        }
+      ]
+    },
+    "valid": false,
+    "errors": [
+      "pattern_unsafe"
+    ]
+  },
+  {
+    "name": "pattern_negative_lookahead",
+    "definition": {
+      "fields": [
+        {
+          "id": "t",
+          "type": "text",
+          "label": "T",
+          "required": false,
+          "rules": {
+            "pattern": "^(?!admin).+$"
+          }
+        }
+      ]
+    },
+    "valid": false,
+    "errors": [
+      "pattern_unsafe"
+    ]
+  },
+  {
+    "name": "pattern_lookbehind",
+    "definition": {
+      "fields": [
+        {
+          "id": "t",
+          "type": "text",
+          "label": "T",
+          "required": false,
+          "rules": {
+            "pattern": "(?<=x)y"
+          }
+        }
+      ]
+    },
+    "valid": false,
+    "errors": [
+      "pattern_unsafe"
+    ]
+  },
+  {
+    "name": "pattern_negative_lookbehind",
+    "definition": {
+      "fields": [
+        {
+          "id": "t",
+          "type": "text",
+          "label": "T",
+          "required": false,
+          "rules": {
+            "pattern": "(?<!x)y"
+          }
+        }
+      ]
+    },
+    "valid": false,
+    "errors": [
+      "pattern_unsafe"
+    ]
+  },
+  {
+    "name": "pattern_with_slash",
+    "definition": {
+      "fields": [
+        {
+          "id": "t",
+          "type": "text",
+          "label": "T",
+          "required": false,
+          "rules": {
+            "pattern": "^https://[a-z]+\\.example\\.com/[a-z0-9/]*$"
+          }
+        }
+      ]
+    },
+    "valid": true,
+    "errors": []
+  },
+  {
+    "name": "pattern_named_group_without_backreference",
+    "definition": {
+      "fields": [
+        {
+          "id": "t",
+          "type": "text",
+          "label": "T",
+          "required": false,
+          "rules": {
+            "pattern": "^(?<year>[0-9]{4})-(?<month>[0-9]{2})$"
+          }
+        }
+      ]
+    },
+    "valid": true,
+    "errors": []
+  },
+  {
+    "name": "pattern_atomic_group",
+    "definition": {
+      "fields": [
+        {
+          "id": "t",
+          "type": "text",
+          "label": "T",
+          "required": false,
+          "rules": {
+            "pattern": "^(?>a+)b$"
+          }
+        }
+      ]
+    },
+    "valid": false,
+    "errors": [
+      "pattern_unsafe"
+    ]
+  },
+  {
+    "name": "pattern_possessive_plus",
+    "definition": {
+      "fields": [
+        {
+          "id": "t",
+          "type": "text",
+          "label": "T",
+          "required": false,
+          "rules": {
+            "pattern": "^a++b$"
+          }
+        }
+      ]
+    },
+    "valid": false,
+    "errors": [
+      "pattern_unsafe"
+    ]
+  },
+  {
+    "name": "pattern_possessive_star",
+    "definition": {
+      "fields": [
+        {
+          "id": "t",
+          "type": "text",
+          "label": "T",
+          "required": false,
+          "rules": {
+            "pattern": "^a*+b$"
+          }
+        }
+      ]
+    },
+    "valid": false,
+    "errors": [
+      "pattern_unsafe"
+    ]
+  },
+  {
+    "name": "pattern_possessive_question",
+    "definition": {
+      "fields": [
+        {
+          "id": "t",
+          "type": "text",
+          "label": "T",
+          "required": false,
+          "rules": {
+            "pattern": "^a?+b$"
+          }
+        }
+      ]
+    },
+    "valid": false,
+    "errors": [
+      "pattern_unsafe"
+    ]
+  },
+  {
+    "name": "pattern_inline_flag",
+    "definition": {
+      "fields": [
+        {
+          "id": "t",
+          "type": "text",
+          "label": "T",
+          "required": false,
+          "rules": {
+            "pattern": "(?i)^abc$"
+          }
+        }
+      ]
+    },
+    "valid": false,
+    "errors": [
+      "pattern_unsafe"
+    ]
+  },
+  {
+    "name": "pattern_anchor_A",
+    "definition": {
+      "fields": [
+        {
+          "id": "t",
+          "type": "text",
+          "label": "T",
+          "required": false,
+          "rules": {
+            "pattern": "\\Aabc$"
+          }
+        }
+      ]
+    },
+    "valid": false,
+    "errors": [
+      "pattern_unsafe"
+    ]
+  },
+  {
+    "name": "pattern_anchor_Z",
+    "definition": {
+      "fields": [
+        {
+          "id": "t",
+          "type": "text",
+          "label": "T",
+          "required": false,
+          "rules": {
+            "pattern": "^abc\\Z"
+          }
+        }
+      ]
+    },
+    "valid": false,
+    "errors": [
+      "pattern_unsafe"
+    ]
+  },
+  {
+    "name": "pattern_anchor_z",
+    "definition": {
+      "fields": [
+        {
+          "id": "t",
+          "type": "text",
+          "label": "T",
+          "required": false,
+          "rules": {
+            "pattern": "^abc\\z"
+          }
+        }
+      ]
+    },
+    "valid": false,
+    "errors": [
+      "pattern_unsafe"
+    ]
+  },
+  {
+    "name": "pattern_quote_literal",
+    "definition": {
+      "fields": [
+        {
+          "id": "t",
+          "type": "text",
+          "label": "T",
+          "required": false,
+          "rules": {
+            "pattern": "^\\Qa.b\\E$"
+          }
+        }
+      ]
+    },
+    "valid": false,
+    "errors": [
+      "pattern_unsafe"
+    ]
+  },
+  {
+    "name": "pattern_posix_class",
+    "definition": {
+      "fields": [
+        {
+          "id": "t",
+          "type": "text",
+          "label": "T",
+          "required": false,
+          "rules": {
+            "pattern": "^[[:alpha:]]+$"
+          }
+        }
+      ]
+    },
+    "valid": false,
+    "errors": [
+      "pattern_unsafe"
+    ]
+  },
+  {
+    "name": "pattern_python_named_group",
+    "definition": {
+      "fields": [
+        {
+          "id": "t",
+          "type": "text",
+          "label": "T",
+          "required": false,
+          "rules": {
+            "pattern": "^(?P<x>a)$"
+          }
+        }
+      ]
+    },
+    "valid": false,
+    "errors": [
+      "pattern_unsafe"
+    ]
+  },
+  {
+    "name": "pattern_does_not_compile_unclosed_class",
+    "definition": {
+      "fields": [
+        {
+          "id": "t",
+          "type": "text",
+          "label": "T",
+          "required": false,
+          "rules": {
+            "pattern": "[a-"
+          }
+        }
+      ]
+    },
+    "valid": false,
+    "errors": [
+      "pattern_invalid"
+    ]
+  },
+  {
+    "name": "pattern_does_not_compile_unclosed_group",
+    "definition": {
+      "fields": [
+        {
+          "id": "t",
+          "type": "text",
+          "label": "T",
+          "required": false,
+          "rules": {
+            "pattern": "(abc"
+          }
+        }
+      ]
+    },
+    "valid": false,
+    "errors": [
+      "pattern_invalid"
+    ]
+  },
+  {
+    "name": "pattern_not_a_string",
+    "definition": {
+      "fields": [
+        {
+          "id": "t",
+          "type": "text",
+          "label": "T",
+          "required": false,
+          "rules": {
+            "pattern": 5
+          }
+        }
+      ]
+    },
+    "valid": false,
+    "errors": [
+      "pattern_invalid"
+    ]
+  },
+  {
+    "name": "pattern_on_non_text_field",
+    "definition": {
+      "fields": [
+        {
+          "id": "n",
+          "type": "number",
+          "label": "N",
+          "required": false,
+          "rules": {
+            "pattern": "^1$"
+          }
+        }
+      ]
+    },
+    "valid": false,
+    "errors": [
+      "rule_forbidden"
+    ]
+  }
+]

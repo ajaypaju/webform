@@ -1,0 +1,265 @@
+[
+  {
+    "name": "select_with_options",
+    "definition": {
+      "fields": [
+        {
+          "id": "s",
+          "type": "select",
+          "label": "S",
+          "required": false,
+          "options": [
+            {
+              "value": "a",
+              "label": "A"
+            },
+            {
+              "value": "b",
+              "label": "B"
+            },
+            {
+              "value": "c",
+              "label": "C"
+            }
+          ]
+        }
+      ]
+    },
+    "valid": true,
+    "errors": []
+  },
+  {
+    "name": "select_without_options",
+    "definition": {
+      "fields": [
+        {
+          "id": "s",
+          "type": "select",
+          "label": "S",
+          "required": false
+        }
+      ]
+    },
+    "valid": false,
+    "errors": [
+      "options_missing"
+    ]
+  },
+  {
+    "name": "select_with_empty_options",
+    "definition": {
+      "fields": [
+        {
+          "id": "s",
+          "type": "select",
+          "label": "S",
+          "required": false,
+          "options": []
+        }
+      ]
+    },
+    "valid": false,
+    "errors": [
+      "options_missing"
+    ]
+  },
+  {
+    "name": "multiselect_without_options",
+    "definition": {
+      "fields": [
+        {
+          "id": "m",
+          "type": "multiselect",
+          "label": "M",
+          "required": false
+        }
+      ]
+    },
+    "valid": false,
+    "errors": [
+      "options_missing"
+    ]
+  },
+  {
+    "name": "radio_without_options",
+    "definition": {
+      "fields": [
+        {
+          "id": "r",
+          "type": "radio",
+          "label": "R",
+          "required": false
+        }
+      ]
+    },
+    "valid": false,
+    "errors": [
+      "options_missing"
+    ]
+  },
+  {
+    "name": "options_on_text",
+    "definition": {
+      "fields": [
+        {
+          "id": "t",
+          "type": "text",
+          "label": "T",
+          "required": false,
+          "options": [
+            {
+              "value": "a",
+              "label": "A"
+            },
+            {
+              "value": "b",
+              "label": "B"
+            },
+            {
+              "value": "c",
+              "label": "C"
+            }
+          ]
+        }
+      ]
+    },
+    "valid": false,
+    "errors": [
+      "options_forbidden"
+    ]
+  },
+  {
+    "name": "options_on_number",
+    "definition": {
+      "fields": [
+        {
+          "id": "n",
+          "type": "number",
+          "label": "N",
+          "required": false,
+          "options": [
+            {
+              "value": "a",
+              "label": "A"
+            },
+            {
+              "value": "b",
+              "label": "B"
+            },
+            {
+              "value": "c",
+              "label": "C"
+            }
+          ]
+        }
+      ]
+    },
+    "valid": false,
+    "errors": [
+      "options_forbidden"
+    ]
+  },
+  {
+    "name": "options_on_checkbox",
+    "definition": {
+      "fields": [
+        {
+          "id": "c",
+          "type": "checkbox",
+          "label": "C",
+          "required": false,
+          "options": [
+            {
+              "value": "a",
+              "label": "A"
+            },
+            {
+              "value": "b",
+              "label": "B"
+            },
+            {
+              "value": "c",
+              "label": "C"
+            }
+          ]
+        }
+      ]
+    },
+    "valid": false,
+    "errors": [
+      "options_forbidden"
+    ]
+  },
+  {
+    "name": "option_missing_value",
+    "definition": {
+      "fields": [
+        {
+          "id": "s",
+          "type": "select",
+          "label": "S",
+          "required": false,
+          "options": [
+            {
+              "label": "A"
+            }
+          ]
+        }
+      ]
+    },
+    "valid": false,
+    "errors": [
+      "option_value"
+    ]
+  },
+  {
+    "name": "option_value_not_string",
+    "definition": {
+      "fields": [
+        {
+          "id": "s",
+          "type": "select",
+          "label": "S",
+          "required": false,
+          "options": [
+            {
+              "value": 1,
+              "label": "One"
+            }
+          ]
+        }
+      ]
+    },
+    "valid": false,
+    "errors": [
+      "option_value"
+    ]
+  },
+  {
+    "name": "duplicate_option_values",
+    "definition": {
+      "fields": [
+        {
+          "id": "s",
+          "type": "select",
+          "label": "S",
+          "required": false,
+          "options": [
+            {
+              "value": "a",
+              "label": "A"
+            },
+            {
+              "value": "a",
+              "label": "Also A"
+            }
+          ]
+        }
+      ]
+    },
+    "valid": false,
+    "errors": [
+      "duplicate_option"
+    ]
+  }
+]

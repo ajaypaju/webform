@@ -1,0 +1,470 @@
+[
+  {
+    "name": "select_each_option_a",
+    "definition": {
+      "fields": [
+        {
+          "id": "s",
+          "type": "select",
+          "label": "S",
+          "required": false,
+          "options": [
+            {
+              "value": "a",
+              "label": "A"
+            },
+            {
+              "value": "b",
+              "label": "B"
+            },
+            {
+              "value": "c",
+              "label": "C"
+            }
+          ]
+        }
+      ]
+    },
+    "input": {
+      "s": "a"
+    },
+    "valid": true,
+    "errors": {},
+    "output": {
+      "s": "a"
+    }
+  },
+  {
+    "name": "select_each_option_c",
+    "definition": {
+      "fields": [
+        {
+          "id": "s",
+          "type": "select",
+          "label": "S",
+          "required": false,
+          "options": [
+            {
+              "value": "a",
+              "label": "A"
+            },
+            {
+              "value": "b",
+              "label": "B"
+            },
+            {
+              "value": "c",
+              "label": "C"
+            }
+          ]
+        }
+      ]
+    },
+    "input": {
+      "s": "c"
+    },
+    "valid": true,
+    "errors": {},
+    "output": {
+      "s": "c"
+    }
+  },
+  {
+    "name": "select_option_is_case_sensitive",
+    "definition": {
+      "fields": [
+        {
+          "id": "s",
+          "type": "select",
+          "label": "S",
+          "required": false,
+          "options": [
+            {
+              "value": "a",
+              "label": "A"
+            },
+            {
+              "value": "b",
+              "label": "B"
+            },
+            {
+              "value": "c",
+              "label": "C"
+            }
+          ]
+        }
+      ]
+    },
+    "input": {
+      "s": "A"
+    },
+    "valid": false,
+    "errors": {
+      "s": [
+        "option"
+      ]
+    },
+    "output": {}
+  },
+  {
+    "name": "select_value_is_trimmed_before_matching",
+    "definition": {
+      "fields": [
+        {
+          "id": "s",
+          "type": "select",
+          "label": "S",
+          "required": false,
+          "options": [
+            {
+              "value": "a",
+              "label": "A"
+            },
+            {
+              "value": "b",
+              "label": "B"
+            },
+            {
+              "value": "c",
+              "label": "C"
+            }
+          ]
+        }
+      ]
+    },
+    "input": {
+      "s": " a "
+    },
+    "valid": true,
+    "errors": {},
+    "output": {
+      "s": "a"
+    }
+  },
+  {
+    "name": "select_numeric_value_must_be_string",
+    "definition": {
+      "fields": [
+        {
+          "id": "s",
+          "type": "select",
+          "label": "S",
+          "required": false,
+          "options": [
+            {
+              "value": "1",
+              "label": "1"
+            },
+            {
+              "value": "2",
+              "label": "2"
+            }
+          ]
+        }
+      ]
+    },
+    "input": {
+      "s": 1
+    },
+    "valid": false,
+    "errors": {
+      "s": [
+        "type"
+      ]
+    },
+    "output": {}
+  },
+  {
+    "name": "select_numeric_looking_string_matches",
+    "definition": {
+      "fields": [
+        {
+          "id": "s",
+          "type": "select",
+          "label": "S",
+          "required": false,
+          "options": [
+            {
+              "value": "1",
+              "label": "1"
+            },
+            {
+              "value": "2",
+              "label": "2"
+            }
+          ]
+        }
+      ]
+    },
+    "input": {
+      "s": "1"
+    },
+    "valid": true,
+    "errors": {},
+    "output": {
+      "s": "1"
+    }
+  },
+  {
+    "name": "select_label_is_not_a_value",
+    "definition": {
+      "fields": [
+        {
+          "id": "s",
+          "type": "select",
+          "label": "S",
+          "required": false,
+          "options": [
+            {
+              "value": "a",
+              "label": "A"
+            },
+            {
+              "value": "b",
+              "label": "B"
+            },
+            {
+              "value": "c",
+              "label": "C"
+            }
+          ]
+        }
+      ]
+    },
+    "input": {
+      "s": "B"
+    },
+    "valid": false,
+    "errors": {
+      "s": [
+        "option"
+      ]
+    },
+    "output": {}
+  },
+  {
+    "name": "multiselect_all_options",
+    "definition": {
+      "fields": [
+        {
+          "id": "m",
+          "type": "multiselect",
+          "label": "M",
+          "required": false,
+          "options": [
+            {
+              "value": "a",
+              "label": "A"
+            },
+            {
+              "value": "b",
+              "label": "B"
+            },
+            {
+              "value": "c",
+              "label": "C"
+            }
+          ]
+        }
+      ]
+    },
+    "input": {
+      "m": [
+        "a",
+        "b",
+        "c"
+      ]
+    },
+    "valid": true,
+    "errors": {},
+    "output": {
+      "m": [
+        "a",
+        "b",
+        "c"
+      ]
+    }
+  },
+  {
+    "name": "multiselect_order_preserved",
+    "definition": {
+      "fields": [
+        {
+          "id": "m",
+          "type": "multiselect",
+          "label": "M",
+          "required": false,
+          "options": [
+            {
+              "value": "a",
+              "label": "A"
+            },
+            {
+              "value": "b",
+              "label": "B"
+            },
+            {
+              "value": "c",
+              "label": "C"
+            }
+          ]
+        }
+      ]
+    },
+    "input": {
+      "m": [
+        "c",
+        "a"
+      ]
+    },
+    "valid": true,
+    "errors": {},
+    "output": {
+      "m": [
+        "c",
+        "a"
+      ]
+    }
+  },
+  {
+    "name": "multiselect_one_bad_among_good",
+    "definition": {
+      "fields": [
+        {
+          "id": "m",
+          "type": "multiselect",
+          "label": "M",
+          "required": false,
+          "options": [
+            {
+              "value": "a",
+              "label": "A"
+            },
+            {
+              "value": "b",
+              "label": "B"
+            },
+            {
+              "value": "c",
+              "label": "C"
+            }
+          ]
+        }
+      ]
+    },
+    "input": {
+      "m": [
+        "a",
+        "b",
+        "z"
+      ]
+    },
+    "valid": false,
+    "errors": {
+      "m": [
+        "option"
+      ]
+    },
+    "output": {}
+  },
+  {
+    "name": "multiselect_duplicate_values",
+    "definition": {
+      "fields": [
+        {
+          "id": "m",
+          "type": "multiselect",
+          "label": "M",
+          "required": false,
+          "options": [
+            {
+              "value": "a",
+              "label": "A"
+            },
+            {
+              "value": "b",
+              "label": "B"
+            },
+            {
+              "value": "c",
+              "label": "C"
+            }
+          ]
+        }
+      ]
+    },
+    "input": {
+      "m": [
+        "a",
+        "a"
+      ]
+    },
+    "valid": false,
+    "errors": {
+      "m": [
+        "option"
+      ]
+    },
+    "output": {}
+  },
+  {
+    "name": "radio_option_is_case_sensitive",
+    "definition": {
+      "fields": [
+        {
+          "id": "r",
+          "type": "radio",
+          "label": "R",
+          "required": false,
+          "options": [
+            {
+              "value": "a",
+              "label": "A"
+            },
+            {
+              "value": "b",
+              "label": "B"
+            },
+            {
+              "value": "c",
+              "label": "C"
+            }
+          ]
+        }
+      ]
+    },
+    "input": {
+      "r": "B"
+    },
+    "valid": false,
+    "errors": {
+      "r": [
+        "option"
+      ]
+    },
+    "output": {}
+  },
+  {
+    "name": "checkbox_has_no_options_true_string_rejected",
+    "definition": {
+      "fields": [
+        {
+          "id": "c",
+          "type": "checkbox",
+          "label": "C",
+          "required": false
+        }
+      ]
+    },
+    "input": {
+      "c": "on"
+    },
+    "valid": false,
+    "errors": {
+      "c": [
+        "type"
+      ]
+    },
+    "output": {}
+  }
+]

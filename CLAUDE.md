@@ -50,7 +50,8 @@ Routes are registered per APP_ROLE so a burst on ingest can't starve the dashboa
 ```
 app/Forms/DefinitionRules.php      validates a form definition at save
 app/Forms/Visibility.php           evaluates visibleIf conditions
-app/Forms/SubmissionValidator.php  visibility -> strip hidden -> build Laravel rules -> validate
+app/Forms/SubmissionValidator.php  visibility -> strip hidden -> strict type/rule checks -> ValidationResult
+                                   pure PHP, no Laravel Validator (loose typing would break PHP/JS parity)
 app/Forms/PublishCompat.php        I5, I6 checks
 app/Forms/SafePattern.php          customer regex evaluation (I8)
 app/Ingest/SubmissionProducer.php  produce + flush + delivery check (I1)
@@ -86,7 +87,7 @@ HTTP caching: `GET /v1/forms/{form}/versions/{version}` (definition JSON) -> `Ca
 - **I2 Idempotency.** Submission id is a client-generated UUIDv7, reused on retry. Consumer, in one transaction: insert ids into `submission_ids ON CONFLICT DO NOTHING RETURNING id`, insert `submissions` only for returned ids. `enable.auto.commit=false`; commit offsets only after the DB transaction commits.
 - **I3 Version pinning.** A submission carries `form_version_id` and is validated against that version, not the current one. Accept if it's current or was superseded < 24h ago; else 409 with the current version id. The version must belong to the form in the URL.
 - **I4 Immutability.** `form_versions` rows are never updated or deleted (DB trigger raises).
-- **I5 Stable field ids.** Answers keyed by field id, never label. Field ids are server-generated and must match `^[a-z0-9_]{1,40}$`, because Laravel's validator treats `.` and `*` in rule keys as nesting/wildcards and a crafted id would change validation semantics. Publish rejects a draft where an existing field id changed type relative to any prior version.
+- **I5 Stable field ids.** Answers keyed by field id, never label. Field ids are server-generated and must match `^[a-z0-9_]{1,40}$`: they become CSV headers and JSONB paths, so `.`, `*`, and case variants would need escaping everywhere they appear. Publish rejects a draft where an existing field id changed type relative to any prior version.
 - **I6 Conditional logic.** A condition may only reference fields earlier in the form (no cycles by construction). Visibility is evaluated first; hidden fields are stripped from input and get no rules.
 - **I7 Strict input.** Unknown field ids -> 422. Only validated, visible fields are stored (never `$request->all()`). Body size limit enforced.
 - **I8 ReDoS.** PCRE backtracks. `SafePattern` lowers `pcre.backtrack_limit` around the call, treats `preg_match` returning `false` as a validation failure (not a 500), caps pattern and input length. Publish rejects patterns with backreferences or lookaround.

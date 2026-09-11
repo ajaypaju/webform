@@ -1,0 +1,260 @@
+[
+  {
+    "name": "number_min_equals_max",
+    "definition": {
+      "fields": [
+        {
+          "id": "n",
+          "type": "number",
+          "label": "N",
+          "required": false,
+          "rules": {
+            "min": 5,
+            "max": 5
+          }
+        }
+      ]
+    },
+    "valid": true,
+    "errors": []
+  },
+  {
+    "name": "number_min_below_max",
+    "definition": {
+      "fields": [
+        {
+          "id": "n",
+          "type": "number",
+          "label": "N",
+          "required": false,
+          "rules": {
+            "min": 1,
+            "max": 5
+          }
+        }
+      ]
+    },
+    "valid": true,
+    "errors": []
+  },
+  {
+    "name": "number_min_greater_than_max",
+    "definition": {
+      "fields": [
+        {
+          "id": "n",
+          "type": "number",
+          "label": "N",
+          "required": false,
+          "rules": {
+            "min": 10,
+            "max": 5
+          }
+        }
+      ]
+    },
+    "valid": false,
+    "errors": [
+      "min_max"
+    ]
+  },
+  {
+    "name": "text_min_length_equals_max_length",
+    "definition": {
+      "fields": [
+        {
+          "id": "t",
+          "type": "text",
+          "label": "T",
+          "required": false,
+          "rules": {
+            "min_length": 3,
+            "max_length": 3
+          }
+        }
+      ]
+    },
+    "valid": true,
+    "errors": []
+  },
+  {
+    "name": "text_min_length_greater_than_max_length",
+    "definition": {
+      "fields": [
+        {
+          "id": "t",
+          "type": "text",
+          "label": "T",
+          "required": false,
+          "rules": {
+            "min_length": 4,
+            "max_length": 3
+          }
+        }
+      ]
+    },
+    "valid": false,
+    "errors": [
+      "min_max"
+    ]
+  },
+  {
+    "name": "multiselect_min_selected_greater_than_max_selected",
+    "definition": {
+      "fields": [
+        {
+          "id": "m",
+          "type": "multiselect",
+          "label": "M",
+          "required": false,
+          "options": [
+            {
+              "value": "a",
+              "label": "A"
+            },
+            {
+              "value": "b",
+              "label": "B"
+            },
+            {
+              "value": "c",
+              "label": "C"
+            },
+            {
+              "value": "d",
+              "label": "D"
+            }
+          ],
+          "rules": {
+            "min_selected": 3,
+            "max_selected": 2
+          }
+        }
+      ]
+    },
+    "valid": false,
+    "errors": [
+      "min_max"
+    ]
+  },
+  {
+    "name": "date_min_after_max",
+    "definition": {
+      "fields": [
+        {
+          "id": "d",
+          "type": "date",
+          "label": "D",
+          "required": false,
+          "rules": {
+            "min": "2026-12-31",
+            "max": "2026-01-01"
+          }
+        }
+      ]
+    },
+    "valid": false,
+    "errors": [
+      "min_max"
+    ]
+  },
+  {
+    "name": "date_min_equals_max",
+    "definition": {
+      "fields": [
+        {
+          "id": "d",
+          "type": "date",
+          "label": "D",
+          "required": false,
+          "rules": {
+            "min": "2026-06-01",
+            "max": "2026-06-01"
+          }
+        }
+      ]
+    },
+    "valid": true,
+    "errors": []
+  },
+  {
+    "name": "date_min_not_a_date",
+    "definition": {
+      "fields": [
+        {
+          "id": "d",
+          "type": "date",
+          "label": "D",
+          "required": false,
+          "rules": {
+            "min": "yesterday"
+          }
+        }
+      ]
+    },
+    "valid": false,
+    "errors": [
+      "rule_value"
+    ]
+  },
+  {
+    "name": "text_max_length_not_an_integer",
+    "definition": {
+      "fields": [
+        {
+          "id": "t",
+          "type": "text",
+          "label": "T",
+          "required": false,
+          "rules": {
+            "max_length": "5"
+          }
+        }
+      ]
+    },
+    "valid": false,
+    "errors": [
+      "rule_value"
+    ]
+  },
+  {
+    "name": "text_max_length_negative",
+    "definition": {
+      "fields": [
+        {
+          "id": "t",
+          "type": "text",
+          "label": "T",
+          "required": false,
+          "rules": {
+            "max_length": -1
+          }
+        }
+      ]
+    },
+    "valid": false,
+    "errors": [
+      "rule_value"
+    ]
+  },
+  {
+    "name": "unknown_rule_for_type",
+    "definition": {
+      "fields": [
+        {
+          "id": "t",
+          "type": "text",
+          "label": "T",
+          "required": false,
+          "rules": {
+            "min": 1
+          }
+        }
+      ]
+    },
+    "valid": false,
+    "errors": [
+      "rule_forbidden"
+    ]
+  }
+]
