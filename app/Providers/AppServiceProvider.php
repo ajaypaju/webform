@@ -2,8 +2,11 @@
 
 namespace App\Providers;
 
+use App\Database\RuntimeRole;
 use App\Kafka\Producer;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\ServiceProvider;
+use RuntimeException;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -25,6 +28,25 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        //
+        $role = config('app.role');
+
+        if ($role === 'ingest') {
+            RuntimeRole::checkOnFirstConnection($this->app['events'], $this->app['db'], $role);
+
+            return;
+        }
+
+        // WHY: artisan runs as whatever role the operator chose (migrations as the owner). Only long-running
+        // processes serve tenants, so only they must prove they hold a least-privilege role. Octane boots once per worker.
+        if ($this->app->runningInConsole() && $role !== 'consumer') {
+            return;
+        }
+
+        try {
+            RuntimeRole::assertForAppRole(DB::connection(), $role);
+        } catch (RuntimeException $e) {
+            RuntimeRole::refuse($e);
+        }
     }
+
 }
