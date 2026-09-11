@@ -1,0 +1,58 @@
+# Reviewer path: `make up`. Code is baked into the image; no bind mounts (see compose.dev.yaml for the dev loop).
+
+x-app: &app
+  build: .
+  image: webform-app
+  env_file: .env
+  depends_on:
+    postgres:
+      condition: service_healthy
+    redis:
+      condition: service_healthy
+  healthcheck:
+    test: ["CMD", "curl", "-fsS", "http://localhost:8000/up"]
+    interval: 5s
+    timeout: 3s
+    retries: 10
+    start_period: 10s
+
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: webform
+      POSTGRES_PASSWORD: webform
+      POSTGRES_DB: webform
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U webform -d webform"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  api:
+    <<: *app
+    environment:
+      APP_ROLE: api
+    ports:
+      - "8000:8000"
+
+  ingest:
+    <<: *app
+    environment:
+      APP_ROLE: ingest
+    ports:
+      - "8080:8000"
+
+volumes:
+  pgdata:

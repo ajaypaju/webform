@@ -1,0 +1,15 @@
+# Dev loop: `make dev`. Mounts the working tree into api/ingest; an anonymous volume keeps the
+# image's vendor/ from being shadowed by the host (which may have none).
+# Containers run as the host user so files they write (storage/, bootstrap/cache/) aren't root-owned.
+
+x-dev: &dev
+  user: "${UID:-1000}:${GID:-1000}"
+  volumes:
+    - .:/app
+    - /app/vendor
+
+services:
+  api:
+    <<: *dev
+  ingest:
+    <<: *dev

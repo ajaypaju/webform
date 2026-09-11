@@ -5,9 +5,9 @@ loadtest/out/
 # Laravel
 *.log
 .DS_Store
-.env
-.env.backup
-.env.production
+.env*
+!.env.example
+!.env.testing
 .phpactor.json
 .phpunit.result.cache
 /.codex
@@ -30,3 +30,7 @@ _ide_helper.php
 Homestead.json
 Homestead.yaml
 Thumbs.db
+
+**/caddy
+frankenphp
+frankenphp-worker.php
