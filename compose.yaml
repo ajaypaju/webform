@@ -13,6 +13,8 @@ x-app: &app
       condition: service_healthy
     redpanda-init:
       condition: service_completed_successfully
+    migrate:
+      condition: service_completed_successfully
   healthcheck:
     test: ["CMD", "curl", "-fsS", "http://localhost:8000/up"]
     interval: 5s
@@ -23,15 +25,20 @@ x-app: &app
 services:
   postgres:
     image: postgres:16
+    # WHY: the superuser only bootstraps; init.sh creates the four least-privilege roles the app connects as (I11).
     environment:
-      POSTGRES_USER: webform
-      POSTGRES_PASSWORD: webform
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
       POSTGRES_DB: webform
+      WEBFORM_OWNER_PASSWORD: ${DB_OWNER_PASSWORD}
+      WEBFORM_API_PASSWORD: ${DB_API_PASSWORD}
+      WEBFORM_INGEST_PASSWORD: ${DB_INGEST_PASSWORD}
+      WEBFORM_WRITER_PASSWORD: ${DB_WRITER_PASSWORD}
     volumes:
       - pgdata:/var/lib/postgresql/data
-      - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+      - ./docker/postgres/init.sh:/docker-entrypoint-initdb.d/init.sh:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U webform -d webform"]
+      test: ["CMD-SHELL", "pg_isready -U postgres -d webform"]
       interval: 5s
       timeout: 3s
       retries: 10
@@ -91,10 +98,25 @@ services:
         rpk topic describe submissions.dlq >/dev/null 2>&1 || rpk topic create submissions.dlq -p 1 -r 1
         rpk topic list
 
+  # One-shot: schema as the owning role, then the upcoming monthly partitions. api/ingest wait for it.
+  migrate:
+    image: webform-app
+    build: .
+    env_file: .env
+    environment:
+      DB_USERNAME: webform_owner
+      DB_PASSWORD: ${DB_OWNER_PASSWORD}
+    command: sh -c "php artisan migrate --force && php artisan submissions:ensure-partitions"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
   api:
     <<: *app
     environment:
       APP_ROLE: api
+      DB_USERNAME: webform_api
+      DB_PASSWORD: ${DB_API_PASSWORD}
     ports:
       - "8000:8000"
 
@@ -102,6 +124,8 @@ services:
     <<: *app
     environment:
       APP_ROLE: ingest
+      DB_USERNAME: webform_ingest
+      DB_PASSWORD: ${DB_INGEST_PASSWORD}
     ports:
       - "8080:8000"
 

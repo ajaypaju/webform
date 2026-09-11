@@ -3,7 +3,7 @@ COMPOSE_DEV := docker compose -f compose.yaml -f compose.dev.yaml
 export UID  := $(shell id -u)
 export GID  := $(shell id -g)
 
-.PHONY: up dev key down logs sh test test-php test-js reload
+.PHONY: up dev key down reset logs sh test test-php test-js reload
 
 ## up: build, generate APP_KEY, start everything and wait until healthy (the reviewer command)
 up: .env
@@ -29,6 +29,10 @@ key: .env
 down:
 	$(COMPOSE) down
 
+## reset: down and delete volumes (postgres data, redpanda data), so the next up re-initializes roles and topics
+reset:
+	$(COMPOSE) down -v
+
 logs:
 	$(COMPOSE) logs -f --tail=100
 
@@ -38,8 +42,9 @@ sh:
 ## test: the container env would shadow phpunit.xml (Laravel reads $_SERVER first), so pass the test values explicitly
 test: test-php test-js
 
+## test-php: runs as the owner role (migrations, truncation); the role passwords come from the container's own env
 test-php:
-	$(COMPOSE) exec -e APP_ENV=testing -e DB_DATABASE=webform_test -e CACHE_STORE=array api php artisan test
+	$(COMPOSE) exec api sh -c 'APP_ENV=testing DB_DATABASE=webform_test CACHE_STORE=array DB_USERNAME=webform_owner DB_PASSWORD=$$DB_OWNER_PASSWORD php artisan test'
 
 ## test-js: cross-engine regex check (tests/js), no npm dependencies
 test-js:

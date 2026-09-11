@@ -84,7 +84,7 @@ return [
             ]) : [],
         ],
 
-        'pgsql' => [
+        'pgsql' => $pgsql = [
             'driver' => 'pgsql',
             'url' => env('DB_URL'),
             'host' => env('DB_HOST', '127.0.0.1'),
@@ -98,6 +98,12 @@ return [
             'search_path' => 'public',
             'sslmode' => env('DB_SSLMODE', 'prefer'),
         ],
+
+        // I11: each process connects as its own least-privilege role. The default connection is whatever role the
+        // container was given; these named ones exist so the RLS tests can act as every role from one process.
+        'pgsql_api' => [...$pgsql, 'username' => 'webform_api', 'password' => env('DB_API_PASSWORD')],
+        'pgsql_ingest' => [...$pgsql, 'username' => 'webform_ingest', 'password' => env('DB_INGEST_PASSWORD')],
+        'pgsql_writer' => [...$pgsql, 'username' => 'webform_writer', 'password' => env('DB_WRITER_PASSWORD')],
 
         'sqlsrv' => [
             'driver' => 'sqlsrv',
