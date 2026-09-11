@@ -1,7 +1,8 @@
 FROM dunglas/frankenphp:1-php8.4
 
-# WHY: pdo_pgsql for Postgres, redis for the cache-backed RateLimiter, pcntl for the consumer's signal handling, zip for composer dist installs
-RUN install-php-extensions pdo_pgsql redis pcntl zip
+# WHY: pdo_pgsql for Postgres, redis for the cache-backed RateLimiter, pcntl for the consumer's signal handling,
+# rdkafka for the Redpanda producer/consumer, zip for composer dist installs
+RUN install-php-extensions pdo_pgsql redis pcntl rdkafka zip
 
 COPY --from=composer:2 /usr/bin/composer /usr/local/bin/composer
 

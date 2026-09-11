@@ -9,6 +9,10 @@ x-app: &app
       condition: service_healthy
     redis:
       condition: service_healthy
+    redpanda:
+      condition: service_healthy
+    redpanda-init:
+      condition: service_completed_successfully
   healthcheck:
     test: ["CMD", "curl", "-fsS", "http://localhost:8000/up"]
     interval: 5s
@@ -40,6 +44,53 @@ services:
       timeout: 3s
       retries: 10
 
+  redpanda:
+    # WHY: pinned to the last patch of the previous minor line (17 patch releases in) rather than the
+    # newest line, so the reviewer path is reproducible and not on a fresh release train.
+    image: redpandadata/redpanda:v25.3.17
+    # WHY: no `--mode dev-container`, and redpanda-init forces write_caching_default=false: the image ships
+    # developer_mode=true, which defaults write caching ON (ack before fsync) and would silently void I1.
+    command:
+      - redpanda
+      - start
+      - --smp=1
+      - --memory=512M
+      - --reserve-memory=0M
+      - --overprovisioned
+      - --node-id=0
+      - --check=false
+      - --kafka-addr=0.0.0.0:9092
+      - --advertise-kafka-addr=redpanda:9092
+    volumes:
+      - redpanda:/var/lib/redpanda/data
+    healthcheck:
+      test: ["CMD-SHELL", "rpk cluster health | grep -E 'Healthy:.+true' || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+
+  # One-shot: verifies the durability settings, creates the topics, exits. api/ingest wait for it.
+  redpanda-init:
+    image: redpandadata/redpanda:v25.3.17
+    depends_on:
+      redpanda:
+        condition: service_healthy
+    environment:
+      RPK_BROKERS: redpanda:9092
+      RPK_ADMIN_HOSTS: redpanda:9644
+    entrypoint: ["/bin/sh", "-ec"]
+    command:
+      - |
+        # I1: the broker must fsync before acking. Set it, then refuse to start the stack unless it took.
+        rpk cluster config set write_caching_default false
+        val=$$(rpk cluster config get write_caching_default | tr -d '"')
+        echo "write_caching_default=$$val"
+        [ "$$val" = "false" ] || { echo "ERROR: write_caching_default must be false"; exit 1; }
+        rpk topic describe submissions >/dev/null 2>&1 || rpk topic create submissions -p 12 -r 1
+        rpk topic describe submissions.dlq >/dev/null 2>&1 || rpk topic create submissions.dlq -p 1 -r 1
+        rpk topic list
+
   api:
     <<: *app
     environment:
@@ -56,3 +107,4 @@ services:
 
 volumes:
   pgdata:
+  redpanda:
