@@ -72,12 +72,29 @@ forms(id, tenant_id, name, draft jsonb, current_version_id, status)
 form_versions(id, form_id, tenant_id, version_no, definition jsonb, published_at)  -- immutable
 submissions(id uuid, tenant_id, form_id, form_version_id, data jsonb, meta jsonb, received_at)
     PARTITION BY RANGE (received_at), PRIMARY KEY (id, received_at)
+    FK (form_version_id, form_id, tenant_id) -> form_versions(id, form_id, tenant_id)  -- I3
+    monthly partitions submissions_YYYY_MM (artisan submissions:ensure-partitions, idempotent)
+    + submissions_default so an out-of-range row is never a failed insert
 submission_ids(id uuid PRIMARY KEY, received_at)
     -- global dedupe: a partitioned table's unique keys must include the partition key,
-    -- so id alone can't be unique on `submissions`
+    -- so id alone can't be unique on `submissions`. No tenant data, no RLS.
 ```
 
+UUIDs are app-generated (PG16 has no uuidv7()). `received_at` is set by ingest at acceptance and carried in the message, never defaulted in the DB. Schema is raw SQL in migrations (partitioning, composite FKs, RLS, triggers).
+
 Indexes: `submissions (tenant_id, form_id, received_at DESC, id DESC)` for keyset pagination; `GIN (data jsonb_path_ops)` for exact-match filters. `received_at` is server-set; never order by the client-generated id.
+
+Roles (all non-superuser, none BYPASSRLS; created by `docker/postgres/init.sh`, grants and policies in the migration; RLS ENABLED on tenants, api_keys, forms, form_versions, submissions — not FORCED, see I11):
+
+```
+webform_owner   owns tables, runs migrations, tests and seeds; never a runtime role (App\Database\RuntimeRole enforces it)
+webform_api     api: SELECT/INSERT/UPDATE forms, SELECT/INSERT form_versions, SELECT submissions,
+                policy tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid — unset => zero rows;
+                api_keys only via SECURITY DEFINER resolve_api_key(key_hash)
+webform_ingest  ingest: SELECT forms (id, tenant_id, status, current_version_id only) and form_versions where the
+                form is published, any tenant; nothing else
+webform_writer  consumer: INSERT submissions (any tenant), INSERT + SELECT(id) submission_ids; cannot read submissions
+```
 
 HTTP caching: `GET /v1/forms/{form}/versions/{version}` (definition JSON) -> `Cache-Control: public, max-age=31536000, immutable`. Current-version pointer -> short max-age.
 
@@ -93,7 +110,7 @@ HTTP caching: `GET /v1/forms/{form}/versions/{version}` (definition JSON) -> `Ca
 - **I8 ReDoS.** PCRE backtracks. `SafePattern` lowers `pcre.backtrack_limit` around the call, treats `preg_match` returning `false` as a validation failure (not a 500), caps pattern and input length. Publish rejects patterns with backreferences or lookaround.
 - **I9 XSS.** Blade uses `{{ }}` only, never `{!! !!}`. The definition is embedded with `Js::from()`. JS uses `textContent` / `setAttribute` only, never `innerHTML`. Form page has a strict CSP and `X-Content-Type-Options: nosniff`. Labels and help text are plain text.
 - **I10 CSV injection.** Export prefixes cells beginning with `= + - @` tab or CR with `'`.
-- **I11 Tenant isolation.** Tenant resolved from API key in middleware and bound with `app()->scoped()` (Octane resets scoped bindings per request; a plain singleton would leak tenant context to the next request). Every query filters by tenant_id (global scope). Also RLS with `FORCE ROW LEVEL SECURITY`; app connects as a non-superuser role (superusers bypass RLS); tenant set per transaction with `select set_config('app.tenant_id', ?, true)`. Never session-level `SET`: Octane reuses connections. Cross-tenant access -> 404, not 403.
+- **I11 Tenant isolation.** Tenant resolved from API key (via `resolve_api_key`) in middleware and bound with `app()->scoped()` (Octane resets scoped bindings per request; a plain singleton would leak tenant context to the next request). Every query filters by tenant_id (global scope). Also RLS (ENABLED, role-specific policies, never BYPASSRLS): each process connects as its own least-privilege role (`webform_api`, `webform_ingest`, `webform_writer`); `webform_owner` runs migrations/tests only. RLS is not FORCED: FORCE binds only the table owner, and the owner would then need a `USING (true)` policy that restricts nothing — so the owner is kept out of the runtime by credentials, and `App\Database\RuntimeRole` refuses any process whose connection is the wrong role, superuser, BYPASSRLS, or owns a table (api and consumer at boot; ingest on its first connection, so it can start while Postgres is down). Tenant set per transaction with `select set_config('app.tenant_id', ?, true)`. Never session-level `SET`: Octane reuses connections. Cross-tenant access -> 404, not 403.
 - **I12 Degraded dependencies.** Redis down -> rate limiter fails open to an in-process limiter (catch, don't 500). Postgres down -> ingest keeps accepting for forms whose version is cached in worker memory. Consumer down -> submissions accumulate in the broker.
 - **I13 Spam.** Honeypot field. Minimum fill time via an HMAC-signed render token embedded in the page (client can't forge the timestamp). Rate limits per IP+form, per form, per tenant.
 - **I14 Partitioning.** Kafka message key = submission id, so one hot form spreads across partitions.

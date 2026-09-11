@@ -135,8 +135,19 @@ Evidence: producer — [tests/Feature/Kafka/ProducerTest.php](tests/Feature/Kafk
 
 ### 5.3 Tenant isolation
 
-Mechanism (I11), three layers: tenant resolved from the API key hash in middleware and bound with `app()->scoped()`, which Octane resets per request (a singleton would leak the previous tenant into the next request on the same worker); a tenant global scope on every Eloquent query; PostgreSQL RLS with `FORCE ROW LEVEL SECURITY`, tenant set with `set_config('app.tenant_id', ?, true)` per transaction (a session-level `SET` would outlive the request on a reused connection). Each process (`api`, `ingest`, consumer) connects as its own least-privilege, non-superuser role with role-specific RLS policies; no role bypasses RLS (details in the schema task). Cross-tenant ids return 404.
-Evidence: pending.
+Mechanism (I11), three layers: tenant resolved from the API key hash in middleware and bound with `app()->scoped()`, which Octane resets per request (a singleton would leak the previous tenant into the next request on the same worker); a tenant global scope on every Eloquent query; PostgreSQL RLS `ENABLED` on every table holding tenant data, with the tenant set by `set_config('app.tenant_id', ?, true)` per transaction (a session-level `SET` would outlive the request on a reused connection). Each process connects as its own non-superuser role and gets only its policies; nothing uses `BYPASSRLS`:
+
+| Role | Used by | Grants | Policy |
+|---|---|---|---|
+| `webform_owner` | migrations, tests | owns everything | none — never a runtime role, enforced by `RuntimeRole` |
+| `webform_api` | `api` | S/I/U `forms`, S/I `form_versions`, S `submissions`, EXECUTE `resolve_api_key` | `tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid`, `USING` and `WITH CHECK`; unset → zero rows |
+| `webform_ingest` | `ingest` | S `forms (id, tenant_id, status, current_version_id)`, S `form_versions` | form `status = 'published'`, any tenant; the draft column is not granted |
+| `webform_writer` | consumer | I `submissions`, I + S(id) `submission_ids` | `WITH CHECK (true)` on insert; cannot read submissions |
+
+RLS is deliberately not `FORCED`. `FORCE` binds only the table owner; with the owner running migrations and tests it would need a `USING (true)` policy, and `FORCE` plus an allow-all policy restricts nothing while suggesting it does. The owner is kept out of the runtime by credentials instead, and [app/Database/RuntimeRole.php](app/Database/RuntimeRole.php) verifies them: the connection's `current_user` must be the role expected for `APP_ROLE`, and must not be superuser, `BYPASSRLS`, or the owner of any table in `public`. `api` and the consumer check at boot and refuse to start; `ingest` checks on `ConnectionEstablished` — dispatched inside `DatabaseManager::connection()` before the connection is returned, so the first query cannot run unchecked — because the data plane must start while PostgreSQL is down (I12). A failed check purges the connection (otherwise the worker would keep an unchecked one) and writes the reason to the process's stderr.
+
+`api_keys` is readable by no app role; `resolve_api_key(key_hash)` is `SECURITY DEFINER` with a pinned `search_path`, executable by `webform_api` only. Cross-tenant ids return 404.
+Evidence: [tests/Feature/Schema/ApiRoleTest.php](tests/Feature/Schema/ApiRoleTest.php), [IngestRoleTest.php](tests/Feature/Schema/IngestRoleTest.php), [WriterRoleTest.php](tests/Feature/Schema/WriterRoleTest.php), [RuntimeRoleTest.php](tests/Feature/Schema/RuntimeRoleTest.php) (each role on its own connection against real PostgreSQL). Break-tested: `WITH CHECK (true)` on the api policy fails `rejects an api insert that names another tenant`; granting ingest `forms.draft` fails `IngestRoleTest`; dropping the trigger fails `ImmutabilityTest`; pointing the api container at `webform_owner` makes it exit with `REFUSING TO SERVE`. Scoped binding and middleware: pending.
 
 ### 5.4 Correctness under failure
 
@@ -146,7 +157,7 @@ Evidence: broker-down → 503 within the timeout — [tests/Feature/Kafka/Produc
 ### 5.5 Version integrity
 
 Mechanism (I3, I4, I5): publish creates an immutable `form_versions` row (trigger raises on UPDATE/DELETE); a submission names the version it was rendered against and is validated against it, accepted while current or superseded < 24 h ago, else 409 with the current version id; field ids are server-generated `^[a-z0-9_]{1,40}$`, and a publish that changes an existing id's type is rejected (`PublishCompat`). `Cache-Control: immutable` on definition JSON is safe only because of this.
-Evidence: id regex — [tests/Unit/Conformance/DefinitionsTest.php](tests/Unit/Conformance/DefinitionsTest.php); trigger, pinning, `PublishCompat`: pending.
+Evidence: id regex — [tests/Unit/Conformance/DefinitionsTest.php](tests/Unit/Conformance/DefinitionsTest.php); immutability trigger — [tests/Feature/Schema/ImmutabilityTest.php](tests/Feature/Schema/ImmutabilityTest.php); composite version FK — [tests/Feature/Schema/SubmissionsTableTest.php](tests/Feature/Schema/SubmissionsTableTest.php); pinning window and `PublishCompat`: pending.
 
 ### 5.6 XSS and injection
 
@@ -156,7 +167,7 @@ Evidence: [tests/Unit/Conformance/DefinitionsTest.php](tests/Unit/Conformance/De
 ### 5.7 Dynamic-schema storage
 
 Mechanism: one `submissions` table for all tenants and forms, answers in JSONB `data` keyed by stable field id, `form_version_id` pointing at the definition that gives the keys meaning (section 6).
-Evidence: schema pending; the stored shape is fixed by `ValidationResult::$data` — [tests/Unit/Conformance/SubmissionsTest.php](tests/Unit/Conformance/SubmissionsTest.php) asserts the exact stored object per case.
+Evidence: partitions and DEFAULT fallback — [tests/Feature/Schema/SubmissionsTableTest.php](tests/Feature/Schema/SubmissionsTableTest.php); the stored shape is fixed by `ValidationResult::$data` — [tests/Unit/Conformance/SubmissionsTest.php](tests/Unit/Conformance/SubmissionsTest.php).
 
 ## 6. Data model
 
@@ -167,12 +178,15 @@ forms(id, tenant_id, name, draft jsonb, current_version_id, status)
 form_versions(id, form_id, tenant_id, version_no, definition jsonb, published_at)   -- immutable
 submissions(id uuid, tenant_id, form_id, form_version_id, data jsonb, meta jsonb, received_at)
     PARTITION BY RANGE (received_at), PRIMARY KEY (id, received_at)
+    FK (form_version_id, form_id, tenant_id) -> form_versions (id, form_id, tenant_id)
 submission_ids(id uuid PRIMARY KEY, received_at)
 ```
 
+Built as raw SQL in three migrations (`database/migrations/2026_09_11_*`). UUIDs are generated by the application. `form_versions` has `UNIQUE (id, form_id, tenant_id)` so a submission's composite FK ties it to a version of its own form and tenant (I3); a `BEFORE UPDATE OR DELETE` trigger makes versions immutable (I4). `forms.current_version_id` is a nullable FK back to `form_versions`, which resolves the circular reference: form, then version, then pointer.
+
 **JSONB with stable ids, not EAV or table-per-form.** EAV multiplies rows by field count and turns "show one submission" into a pivot. Table-per-form means DDL on publish, ten thousand tables with their own RLS and indexes, and a migration per version. JSONB keeps one row per submission and one schema; `form_versions.definition` is the schema for reading each row. The cost: per-field range queries are not indexable in general (see the limit below).
 
-**Partitioning.** `submissions` is range-partitioned by `received_at` (monthly): retention is `DETACH PARTITION` + archive, not a bloating `DELETE`. A partitioned table's unique constraints must include the partition key, so `id` alone cannot be unique there; `submission_ids` is a small unpartitioned table whose primary key is the global dedupe point (I2), carrying `received_at` so it is pruned in step.
+**Partitioning.** `submissions` is range-partitioned by `received_at` (monthly, `submissions_YYYY_MM`): retention is `DETACH PARTITION` + archive, not a bloating `DELETE`. `submissions:ensure-partitions` (idempotent, run by the `migrate` service and later by a scheduler) keeps the current and next two months created; a `DEFAULT` partition catches anything outside them, because a failed insert of an already-acked submission would be data loss — a row landing there is an alert, not an error. `received_at` comes from the message (set by ingest at acceptance), never `now()` in the database, so a replayed batch lands in the same partition. A partitioned table's unique constraints must include the partition key, so `id` alone cannot be unique there; `submission_ids` is a small unpartitioned table whose primary key is the global dedupe point (I2), carrying `received_at` so it is pruned in step. It holds no tenant data and has no RLS.
 
 **Indexes and the query each serves.**
 
@@ -214,7 +228,7 @@ A definition is validated twice: `form.js` in the browser for feedback, `App\For
 | Failure | System behaviour | User-visible effect | Recovery |
 |---|---|---|---|
 | Redpanda down or slow | No clean report within `message.timeout.ms` → 503 + `Retry-After`; nothing acked | Retry prompt; `form.js` retries with the same id (planned) | Broker returns; duplicates collapse in `submission_ids` |
-| PostgreSQL down | Ingest keeps accepting for versions cached in worker memory (planned); consumer stops committing, topic absorbs backlog; `api` 503 | Warm forms keep working; dashboard down | Consumer drains; nothing was acked without a broker fsync |
+| PostgreSQL down | Ingest keeps accepting for versions cached in worker memory (planned); consumer stops committing, topic absorbs backlog; `api` 503. A cold `ingest` instance still starts (role check deferred to first connection) but cannot resolve uncached versions | Warm forms keep working; dashboard down; forms not yet cached on a new instance fail until the DB returns | Consumer drains; nothing was acked without a broker fsync. Designed fix: publish also writes the immutable version to a store independent of PostgreSQL (Redis in this slice; object storage behind the CDN in production) and ingest reads versions through it |
 | Redis down | Limiter fails open to in-process (planned) | None; spam limits weaken to per-instance | Shared counters resume |
 | Consumer down | Topic retains; lag grows | Submissions appear late | Restart from last committed offset; replay is idempotent |
 | One ingest instance down | Removed from the balancer; in-flight requests without a report are unacked | A few network errors; clients retry with the same id | Autoscaling replaces it (designed) |
@@ -240,10 +254,11 @@ A definition is validated twice: `form.js` in the browser for feedback, `App\For
 | Definition validation incl. regex portability (I5, I6, I8) | Built | `app/Forms/DefinitionRules.php`, `conformance/` |
 | Submission validation, pure PHP (I6, I7, I8) | Built | `app/Forms/`, `conformance/submissions` |
 | Cross-engine regex compile check | Built | `tests/js/` |
-| Schema, partitioning, RLS, immutability trigger | Designed | section 6 |
+| Schema, monthly partitions + DEFAULT, immutability trigger, composite version FK | Built | `database/migrations/`, `tests/Feature/Schema/` |
+| Four least-privilege roles, RLS policies, `resolve_api_key`, runtime role check, `migrate` service | Built | `database/migrations/…000003…`, `app/Database/RuntimeRole.php`, `docker/postgres/init.sh`, `compose.yaml` |
 | Ingest endpoints, render token, pinning (I3), spam (I13) | Designed | section 4 |
 | Consumer: transactional dedupe, offset commit (I2) | Designed | section 4 |
-| Control-plane API, API keys, scoped tenant binding (I11) | Designed | section 5.3 |
+| Control-plane API, API-key middleware, scoped tenant binding (I11) | Designed | section 5.3 |
 | Form page, `form.js`, CSP (I9); JS conformance run | Designed | section 7 |
 | CSV export, streaming (I10, I15) | Designed | CLAUDE.md |
 | Load generator, reconciliation, chaos script | Planned | `loadtest/` |
