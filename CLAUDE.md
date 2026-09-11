@@ -52,7 +52,10 @@ app/Forms/DefinitionRules.php      validates a form definition at save
 app/Forms/Visibility.php           evaluates visibleIf conditions
 app/Forms/SubmissionValidator.php  visibility -> strip hidden -> strict type/rule checks -> ValidationResult
                                    pure PHP, no Laravel Validator (loose typing would break PHP/JS parity)
-app/Forms/PublishCompat.php        I5, I6 checks
+app/Forms/PublishCompat.php        I5: a field id keeps its type across every published version
+app/Http/Middleware/AuthenticateApiKey.php  Bearer key -> resolve_api_key() -> scoped TenantContext, request transaction + set_config
+app/Http/Controllers/FormController.php     /v1/forms: create, list (keyset), show, draft, publish, versions
+app/Tenancy/                       TenantContext (scoped, I11), ApiKey (wf_ + 32 bytes base62; sha256 stored)
 app/Forms/SafePattern.php          customer regex evaluation (I8)
 app/Ingest/SubmissionProducer.php  produce + flush + delivery check (I1)
 app/Console/Commands/ConsumeSubmissions.php
@@ -110,7 +113,7 @@ HTTP caching: `GET /v1/forms/{form}/versions/{version}` (definition JSON) -> `Ca
 - **I8 ReDoS.** PCRE backtracks. `SafePattern` lowers `pcre.backtrack_limit` around the call, treats `preg_match` returning `false` as a validation failure (not a 500), caps pattern and input length. Publish rejects patterns with backreferences or lookaround.
 - **I9 XSS.** Blade uses `{{ }}` only, never `{!! !!}`. The definition is embedded with `Js::from()`. JS uses `textContent` / `setAttribute` only, never `innerHTML`. Form page has a strict CSP and `X-Content-Type-Options: nosniff`. Labels and help text are plain text.
 - **I10 CSV injection.** Export prefixes cells beginning with `= + - @` tab or CR with `'`.
-- **I11 Tenant isolation.** Tenant resolved from API key (via `resolve_api_key`) in middleware and bound with `app()->scoped()` (Octane resets scoped bindings per request; a plain singleton would leak tenant context to the next request). Every query filters by tenant_id (global scope). Also RLS (ENABLED, role-specific policies, never BYPASSRLS): each process connects as its own least-privilege role (`webform_api`, `webform_ingest`, `webform_writer`); `webform_owner` runs migrations/tests only. RLS is not FORCED: FORCE binds only the table owner, and the owner would then need a `USING (true)` policy that restricts nothing — so the owner is kept out of the runtime by credentials, and `App\Database\RuntimeRole` refuses any process whose connection is the wrong role, superuser, BYPASSRLS, or owns a table (api and consumer at boot; ingest on its first connection, so it can start while Postgres is down). Tenant set per transaction with `select set_config('app.tenant_id', ?, true)`. Never session-level `SET`: Octane reuses connections. Cross-tenant access -> 404, not 403.
+- **I11 Tenant isolation.** Tenant resolved from API key (via `resolve_api_key`) in middleware and bound with `app()->scoped()` (Octane resets scoped bindings per request; a plain singleton would leak tenant context to the next request). Every query filters by tenant_id (global scope). Also RLS (ENABLED, role-specific policies, never BYPASSRLS): each process connects as its own least-privilege role (`webform_api`, `webform_ingest`, `webform_writer`); `webform_owner` runs migrations/tests only. RLS is not FORCED: FORCE binds only the table owner, and the owner would then need a `USING (true)` policy that restricts nothing — so the owner is kept out of the runtime by credentials, and `App\Database\RuntimeRole` refuses any process whose connection is the wrong role, superuser, BYPASSRLS, or owns a table (api and consumer at boot; ingest on its first connection, so it can start while Postgres is down). Tenant set per transaction with `select set_config('app.tenant_id', ?, true)`: `AuthenticateApiKey` wraps the whole request in one transaction and sets it first, so any query outside that transaction sees zero rows. Streamed responses (CSV export) run after the middleware's transaction has ended, so they must open their own transaction and call `set_config` again. Never session-level `SET`: Octane reuses connections. Cross-tenant access -> 404, not 403.
 - **I12 Degraded dependencies.** Redis down -> rate limiter fails open to an in-process limiter (catch, don't 500). Postgres down -> ingest keeps accepting for forms whose version is cached in worker memory. Consumer down -> submissions accumulate in the broker.
 - **I13 Spam.** Honeypot field. Minimum fill time via an HMAC-signed render token embedded in the page (client can't forge the timestamp). Rate limits per IP+form, per form, per tenant.
 - **I14 Partitioning.** Kafka message key = submission id, so one hot form spreads across partitions.
@@ -125,4 +128,5 @@ cd loadtest && node burst.mjs          burst + acked-id capture
 cd loadtest && node reconcile.mjs      reconciliation report
 ./loadtest/chaos.sh                    burst while stopping consumer/postgres/broker, then reconcile
 ./scripts/demo.sh                      seed + publish a demo form
+make tenant name="Acme"                tenant + API key, printed once (runs tenants:create as the owner role)
 ```
