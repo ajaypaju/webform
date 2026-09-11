@@ -1,0 +1,1195 @@
+[
+  {
+    "name": "no_prior_versions",
+    "prior_versions": [],
+    "draft": {
+      "fields": [
+        {
+          "id": "email",
+          "type": "text",
+          "label": "Email",
+          "required": false
+        },
+        {
+          "id": "age",
+          "type": "date",
+          "label": "Age",
+          "required": false
+        }
+      ]
+    },
+    "valid": true,
+    "errors": []
+  },
+  {
+    "name": "same_types_unchanged",
+    "prior_versions": [
+      {
+        "fields": [
+          {
+            "id": "email",
+            "type": "email",
+            "label": "Email",
+            "required": true
+          },
+          {
+            "id": "age",
+            "type": "number",
+            "label": "Age",
+            "required": false
+          },
+          {
+            "id": "plan",
+            "type": "select",
+            "label": "Plan",
+            "required": false,
+            "options": [
+              {
+                "value": "a",
+                "label": "A"
+              },
+              {
+                "value": "b",
+                "label": "B"
+              },
+              {
+                "value": "c",
+                "label": "C"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "draft": {
+      "fields": [
+        {
+          "id": "email",
+          "type": "email",
+          "label": "Email",
+          "required": true
+        },
+        {
+          "id": "age",
+          "type": "number",
+          "label": "Age",
+          "required": false
+        },
+        {
+          "id": "plan",
+          "type": "select",
+          "label": "Plan",
+          "required": false,
+          "options": [
+            {
+              "value": "a",
+              "label": "A"
+            },
+            {
+              "value": "b",
+              "label": "B"
+            },
+            {
+              "value": "c",
+              "label": "C"
+            }
+          ]
+        }
+      ]
+    },
+    "valid": true,
+    "errors": []
+  },
+  {
+    "name": "label_help_rules_options_required_visibility_may_change",
+    "prior_versions": [
+      {
+        "fields": [
+          {
+            "id": "email",
+            "type": "email",
+            "label": "Email",
+            "required": true
+          },
+          {
+            "id": "age",
+            "type": "number",
+            "label": "Age",
+            "required": false
+          },
+          {
+            "id": "plan",
+            "type": "select",
+            "label": "Plan",
+            "required": false,
+            "options": [
+              {
+                "value": "a",
+                "label": "A"
+              },
+              {
+                "value": "b",
+                "label": "B"
+              },
+              {
+                "value": "c",
+                "label": "C"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "draft": {
+      "fields": [
+        {
+          "id": "email",
+          "type": "email",
+          "label": "Work email",
+          "required": false,
+          "help_text": "We never share it",
+          "rules": {
+            "max_length": 100
+          }
+        },
+        {
+          "id": "age",
+          "type": "number",
+          "label": "Age",
+          "required": false,
+          "rules": {
+            "min": 18,
+            "integer": true
+          },
+          "visible_if": {
+            "field": "email",
+            "op": "neq",
+            "value": "x"
+          }
+        },
+        {
+          "id": "plan",
+          "type": "select",
+          "label": "Plan",
+          "required": false,
+          "options": [
+            {
+              "value": "a",
+              "label": "A"
+            },
+            {
+              "value": "b",
+              "label": "B"
+            },
+            {
+              "value": "c",
+              "label": "C"
+            },
+            {
+              "value": "d",
+              "label": "D"
+            }
+          ]
+        }
+      ]
+    },
+    "valid": true,
+    "errors": []
+  },
+  {
+    "name": "new_field_of_any_type",
+    "prior_versions": [
+      {
+        "fields": [
+          {
+            "id": "email",
+            "type": "email",
+            "label": "Email",
+            "required": true
+          },
+          {
+            "id": "age",
+            "type": "number",
+            "label": "Age",
+            "required": false
+          },
+          {
+            "id": "plan",
+            "type": "select",
+            "label": "Plan",
+            "required": false,
+            "options": [
+              {
+                "value": "a",
+                "label": "A"
+              },
+              {
+                "value": "b",
+                "label": "B"
+              },
+              {
+                "value": "c",
+                "label": "C"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "draft": {
+      "fields": [
+        {
+          "id": "email",
+          "type": "email",
+          "label": "Email",
+          "required": true
+        },
+        {
+          "id": "age",
+          "type": "number",
+          "label": "Age",
+          "required": false
+        },
+        {
+          "id": "plan",
+          "type": "select",
+          "label": "Plan",
+          "required": false,
+          "options": [
+            {
+              "value": "a",
+              "label": "A"
+            },
+            {
+              "value": "b",
+              "label": "B"
+            },
+            {
+              "value": "c",
+              "label": "C"
+            }
+          ]
+        },
+        {
+          "id": "notes",
+          "type": "text",
+          "label": "Notes",
+          "required": false
+        },
+        {
+          "id": "consent",
+          "type": "checkbox",
+          "label": "Consent",
+          "required": false
+        }
+      ]
+    },
+    "valid": true,
+    "errors": []
+  },
+  {
+    "name": "field_removed",
+    "prior_versions": [
+      {
+        "fields": [
+          {
+            "id": "email",
+            "type": "email",
+            "label": "Email",
+            "required": true
+          },
+          {
+            "id": "age",
+            "type": "number",
+            "label": "Age",
+            "required": false
+          },
+          {
+            "id": "plan",
+            "type": "select",
+            "label": "Plan",
+            "required": false,
+            "options": [
+              {
+                "value": "a",
+                "label": "A"
+              },
+              {
+                "value": "b",
+                "label": "B"
+              },
+              {
+                "value": "c",
+                "label": "C"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "draft": {
+      "fields": [
+        {
+          "id": "email",
+          "type": "email",
+          "label": "Email",
+          "required": false
+        }
+      ]
+    },
+    "valid": true,
+    "errors": []
+  },
+  {
+    "name": "field_order_changed",
+    "prior_versions": [
+      {
+        "fields": [
+          {
+            "id": "email",
+            "type": "email",
+            "label": "Email",
+            "required": true
+          },
+          {
+            "id": "age",
+            "type": "number",
+            "label": "Age",
+            "required": false
+          },
+          {
+            "id": "plan",
+            "type": "select",
+            "label": "Plan",
+            "required": false,
+            "options": [
+              {
+                "value": "a",
+                "label": "A"
+              },
+              {
+                "value": "b",
+                "label": "B"
+              },
+              {
+                "value": "c",
+                "label": "C"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "draft": {
+      "fields": [
+        {
+          "id": "plan",
+          "type": "select",
+          "label": "Plan",
+          "required": false,
+          "options": [
+            {
+              "value": "a",
+              "label": "A"
+            },
+            {
+              "value": "b",
+              "label": "B"
+            },
+            {
+              "value": "c",
+              "label": "C"
+            }
+          ]
+        },
+        {
+          "id": "age",
+          "type": "number",
+          "label": "Age",
+          "required": false
+        },
+        {
+          "id": "email",
+          "type": "email",
+          "label": "Email",
+          "required": false
+        }
+      ]
+    },
+    "valid": true,
+    "errors": []
+  },
+  {
+    "name": "type_changed",
+    "prior_versions": [
+      {
+        "fields": [
+          {
+            "id": "email",
+            "type": "email",
+            "label": "Email",
+            "required": true
+          },
+          {
+            "id": "age",
+            "type": "number",
+            "label": "Age",
+            "required": false
+          },
+          {
+            "id": "plan",
+            "type": "select",
+            "label": "Plan",
+            "required": false,
+            "options": [
+              {
+                "value": "a",
+                "label": "A"
+              },
+              {
+                "value": "b",
+                "label": "B"
+              },
+              {
+                "value": "c",
+                "label": "C"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "draft": {
+      "fields": [
+        {
+          "id": "email",
+          "type": "text",
+          "label": "Email",
+          "required": false
+        },
+        {
+          "id": "age",
+          "type": "number",
+          "label": "Age",
+          "required": false
+        }
+      ]
+    },
+    "valid": false,
+    "errors": [
+      {
+        "field": "email",
+        "code": "type_changed"
+      }
+    ]
+  },
+  {
+    "name": "number_to_text",
+    "prior_versions": [
+      {
+        "fields": [
+          {
+            "id": "email",
+            "type": "email",
+            "label": "Email",
+            "required": true
+          },
+          {
+            "id": "age",
+            "type": "number",
+            "label": "Age",
+            "required": false
+          },
+          {
+            "id": "plan",
+            "type": "select",
+            "label": "Plan",
+            "required": false,
+            "options": [
+              {
+                "value": "a",
+                "label": "A"
+              },
+              {
+                "value": "b",
+                "label": "B"
+              },
+              {
+                "value": "c",
+                "label": "C"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "draft": {
+      "fields": [
+        {
+          "id": "age",
+          "type": "text",
+          "label": "Age",
+          "required": false
+        }
+      ]
+    },
+    "valid": false,
+    "errors": [
+      {
+        "field": "age",
+        "code": "type_changed"
+      }
+    ]
+  },
+  {
+    "name": "select_to_radio_is_a_type_change",
+    "prior_versions": [
+      {
+        "fields": [
+          {
+            "id": "email",
+            "type": "email",
+            "label": "Email",
+            "required": true
+          },
+          {
+            "id": "age",
+            "type": "number",
+            "label": "Age",
+            "required": false
+          },
+          {
+            "id": "plan",
+            "type": "select",
+            "label": "Plan",
+            "required": false,
+            "options": [
+              {
+                "value": "a",
+                "label": "A"
+              },
+              {
+                "value": "b",
+                "label": "B"
+              },
+              {
+                "value": "c",
+                "label": "C"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "draft": {
+      "fields": [
+        {
+          "id": "plan",
+          "type": "radio",
+          "label": "Plan",
+          "required": false,
+          "options": [
+            {
+              "value": "a",
+              "label": "A"
+            },
+            {
+              "value": "b",
+              "label": "B"
+            },
+            {
+              "value": "c",
+              "label": "C"
+            }
+          ]
+        }
+      ]
+    },
+    "valid": false,
+    "errors": [
+      {
+        "field": "plan",
+        "code": "type_changed"
+      }
+    ]
+  },
+  {
+    "name": "select_to_multiselect_is_a_type_change",
+    "prior_versions": [
+      {
+        "fields": [
+          {
+            "id": "email",
+            "type": "email",
+            "label": "Email",
+            "required": true
+          },
+          {
+            "id": "age",
+            "type": "number",
+            "label": "Age",
+            "required": false
+          },
+          {
+            "id": "plan",
+            "type": "select",
+            "label": "Plan",
+            "required": false,
+            "options": [
+              {
+                "value": "a",
+                "label": "A"
+              },
+              {
+                "value": "b",
+                "label": "B"
+              },
+              {
+                "value": "c",
+                "label": "C"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "draft": {
+      "fields": [
+        {
+          "id": "plan",
+          "type": "multiselect",
+          "label": "Plan",
+          "required": false,
+          "options": [
+            {
+              "value": "a",
+              "label": "A"
+            },
+            {
+              "value": "b",
+              "label": "B"
+            },
+            {
+              "value": "c",
+              "label": "C"
+            }
+          ]
+        }
+      ]
+    },
+    "valid": false,
+    "errors": [
+      {
+        "field": "plan",
+        "code": "type_changed"
+      }
+    ]
+  },
+  {
+    "name": "multiple_changes_reported_in_draft_order",
+    "prior_versions": [
+      {
+        "fields": [
+          {
+            "id": "email",
+            "type": "email",
+            "label": "Email",
+            "required": true
+          },
+          {
+            "id": "age",
+            "type": "number",
+            "label": "Age",
+            "required": false
+          },
+          {
+            "id": "plan",
+            "type": "select",
+            "label": "Plan",
+            "required": false,
+            "options": [
+              {
+                "value": "a",
+                "label": "A"
+              },
+              {
+                "value": "b",
+                "label": "B"
+              },
+              {
+                "value": "c",
+                "label": "C"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "draft": {
+      "fields": [
+        {
+          "id": "plan",
+          "type": "text",
+          "label": "Plan",
+          "required": false
+        },
+        {
+          "id": "email",
+          "type": "text",
+          "label": "Email",
+          "required": false
+        },
+        {
+          "id": "age",
+          "type": "number",
+          "label": "Age",
+          "required": false
+        }
+      ]
+    },
+    "valid": false,
+    "errors": [
+      {
+        "field": "plan",
+        "code": "type_changed"
+      },
+      {
+        "field": "email",
+        "code": "type_changed"
+      }
+    ]
+  },
+  {
+    "name": "deleted_then_readded_with_same_type",
+    "prior_versions": [
+      {
+        "fields": [
+          {
+            "id": "email",
+            "type": "email",
+            "label": "Email",
+            "required": true
+          },
+          {
+            "id": "age",
+            "type": "number",
+            "label": "Age",
+            "required": false
+          },
+          {
+            "id": "plan",
+            "type": "select",
+            "label": "Plan",
+            "required": false,
+            "options": [
+              {
+                "value": "a",
+                "label": "A"
+              },
+              {
+                "value": "b",
+                "label": "B"
+              },
+              {
+                "value": "c",
+                "label": "C"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "fields": [
+          {
+            "id": "email",
+            "type": "email",
+            "label": "Email",
+            "required": false
+          }
+        ]
+      }
+    ],
+    "draft": {
+      "fields": [
+        {
+          "id": "email",
+          "type": "email",
+          "label": "Email",
+          "required": false
+        },
+        {
+          "id": "age",
+          "type": "number",
+          "label": "Age",
+          "required": false
+        }
+      ]
+    },
+    "valid": true,
+    "errors": []
+  },
+  {
+    "name": "deleted_then_readded_with_different_type",
+    "prior_versions": [
+      {
+        "fields": [
+          {
+            "id": "email",
+            "type": "email",
+            "label": "Email",
+            "required": true
+          },
+          {
+            "id": "age",
+            "type": "number",
+            "label": "Age",
+            "required": false
+          },
+          {
+            "id": "plan",
+            "type": "select",
+            "label": "Plan",
+            "required": false,
+            "options": [
+              {
+                "value": "a",
+                "label": "A"
+              },
+              {
+                "value": "b",
+                "label": "B"
+              },
+              {
+                "value": "c",
+                "label": "C"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "fields": [
+          {
+            "id": "email",
+            "type": "email",
+            "label": "Email",
+            "required": false
+          }
+        ]
+      }
+    ],
+    "draft": {
+      "fields": [
+        {
+          "id": "email",
+          "type": "email",
+          "label": "Email",
+          "required": false
+        },
+        {
+          "id": "age",
+          "type": "text",
+          "label": "Age",
+          "required": false
+        }
+      ]
+    },
+    "valid": false,
+    "errors": [
+      {
+        "field": "age",
+        "code": "type_changed"
+      }
+    ]
+  },
+  {
+    "name": "type_from_earliest_version_still_binds",
+    "prior_versions": [
+      {
+        "fields": [
+          {
+            "id": "a",
+            "type": "number",
+            "label": "A",
+            "required": false
+          }
+        ]
+      },
+      {
+        "fields": [
+          {
+            "id": "b",
+            "type": "text",
+            "label": "B",
+            "required": false
+          }
+        ]
+      },
+      {
+        "fields": [
+          {
+            "id": "c",
+            "type": "date",
+            "label": "C",
+            "required": false
+          }
+        ]
+      }
+    ],
+    "draft": {
+      "fields": [
+        {
+          "id": "a",
+          "type": "text",
+          "label": "A",
+          "required": false
+        },
+        {
+          "id": "b",
+          "type": "text",
+          "label": "B",
+          "required": false
+        },
+        {
+          "id": "c",
+          "type": "date",
+          "label": "C",
+          "required": false
+        }
+      ]
+    },
+    "valid": false,
+    "errors": [
+      {
+        "field": "a",
+        "code": "type_changed"
+      }
+    ]
+  },
+  {
+    "name": "id_only_ever_used_in_a_middle_version",
+    "prior_versions": [
+      {
+        "fields": [
+          {
+            "id": "a",
+            "type": "text",
+            "label": "A",
+            "required": false
+          }
+        ]
+      },
+      {
+        "fields": [
+          {
+            "id": "a",
+            "type": "text",
+            "label": "A",
+            "required": false
+          },
+          {
+            "id": "tmp",
+            "type": "checkbox",
+            "label": "Tmp",
+            "required": false
+          }
+        ]
+      },
+      {
+        "fields": [
+          {
+            "id": "a",
+            "type": "text",
+            "label": "A",
+            "required": false
+          }
+        ]
+      }
+    ],
+    "draft": {
+      "fields": [
+        {
+          "id": "a",
+          "type": "text",
+          "label": "A",
+          "required": false
+        },
+        {
+          "id": "tmp",
+          "type": "text",
+          "label": "Tmp",
+          "required": false
+        }
+      ]
+    },
+    "valid": false,
+    "errors": [
+      {
+        "field": "tmp",
+        "code": "type_changed"
+      }
+    ]
+  },
+  {
+    "name": "draft_identical_to_an_old_version",
+    "prior_versions": [
+      {
+        "fields": [
+          {
+            "id": "email",
+            "type": "email",
+            "label": "Email",
+            "required": true
+          },
+          {
+            "id": "age",
+            "type": "number",
+            "label": "Age",
+            "required": false
+          },
+          {
+            "id": "plan",
+            "type": "select",
+            "label": "Plan",
+            "required": false,
+            "options": [
+              {
+                "value": "a",
+                "label": "A"
+              },
+              {
+                "value": "b",
+                "label": "B"
+              },
+              {
+                "value": "c",
+                "label": "C"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "fields": [
+          {
+            "id": "email",
+            "type": "email",
+            "label": "Email",
+            "required": false
+          }
+        ]
+      }
+    ],
+    "draft": {
+      "fields": [
+        {
+          "id": "email",
+          "type": "email",
+          "label": "Email",
+          "required": true
+        },
+        {
+          "id": "age",
+          "type": "number",
+          "label": "Age",
+          "required": false
+        },
+        {
+          "id": "plan",
+          "type": "select",
+          "label": "Plan",
+          "required": false,
+          "options": [
+            {
+              "value": "a",
+              "label": "A"
+            },
+            {
+              "value": "b",
+              "label": "B"
+            },
+            {
+              "value": "c",
+              "label": "C"
+            }
+          ]
+        }
+      ]
+    },
+    "valid": true,
+    "errors": []
+  },
+  {
+    "name": "empty_draft_after_versions",
+    "prior_versions": [
+      {
+        "fields": [
+          {
+            "id": "email",
+            "type": "email",
+            "label": "Email",
+            "required": true
+          },
+          {
+            "id": "age",
+            "type": "number",
+            "label": "Age",
+            "required": false
+          },
+          {
+            "id": "plan",
+            "type": "select",
+            "label": "Plan",
+            "required": false,
+            "options": [
+              {
+                "value": "a",
+                "label": "A"
+              },
+              {
+                "value": "b",
+                "label": "B"
+              },
+              {
+                "value": "c",
+                "label": "C"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "draft": {
+      "fields": []
+    },
+    "valid": true,
+    "errors": []
+  },
+  {
+    "name": "ids_are_case_sensitive_so_a_new_casing_is_a_new_field",
+    "prior_versions": [
+      {
+        "fields": [
+          {
+            "id": "age",
+            "type": "number",
+            "label": "Age",
+            "required": false
+          }
+        ]
+      }
+    ],
+    "draft": {
+      "fields": [
+        {
+          "id": "Age",
+          "type": "text",
+          "label": "Age",
+          "required": false
+        }
+      ]
+    },
+    "valid": true,
+    "errors": []
+  }
+]

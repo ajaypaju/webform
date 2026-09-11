@@ -36,3 +36,8 @@ lists `{pattern, accept}` cases; `tests/js/patterns.test.mjs` proves every accep
 on exotic input — never bad stored data)
 - `\s`: JS matches Unicode spaces (U+00A0, U+2028, U+3000 …); PCRE without UCP matches ASCII whitespace only.
 - `.`: neither matches `\n`; JS also excludes `\r`, U+2028 and U+2029, PCRE (with `u`) matches them.
+
+## publish/*.json — `PublishCompat::check(prior_versions, draft)` (I5)
+`{"name", "prior_versions": [definition…], "draft", "valid", "errors": [{"field", "code"}]}` — a field id that appeared in any
+prior version keeps its type forever, even if deleted and re-added; label, help text, rules, options, required and
+`visible_if` may change. Code: `type_changed`. Errors in draft field order. Ids are case-sensitive.
