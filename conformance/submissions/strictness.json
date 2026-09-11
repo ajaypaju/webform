@@ -492,6 +492,69 @@
     }
   },
   {
+    "name": "output_whole_float_folds_to_int_without_integer_rule",
+    "definition": {
+      "fields": [
+        {
+          "id": "n",
+          "type": "number",
+          "label": "N",
+          "required": false
+        }
+      ]
+    },
+    "input": {
+      "n": 5.0
+    },
+    "valid": true,
+    "errors": {},
+    "output": {
+      "n": 5
+    }
+  },
+  {
+    "name": "output_whole_float_beyond_max_safe_integer_stays_float",
+    "definition": {
+      "fields": [
+        {
+          "id": "n",
+          "type": "number",
+          "label": "N",
+          "required": false
+        }
+      ]
+    },
+    "input": {
+      "n": 1e+20
+    },
+    "valid": true,
+    "errors": {},
+    "output": {
+      "n": 1e+20
+    }
+  },
+  {
+    "name": "output_whole_float_at_max_safe_integer_folds",
+    "definition": {
+      "fields": [
+        {
+          "id": "n",
+          "type": "number",
+          "label": "N",
+          "required": false
+        }
+      ]
+    },
+    "input": {
+      "n": 9007199254740991.0
+    },
+    "valid": true,
+    "errors": {},
+    "output": {
+      "n": 9007199254740991
+    }
+  },
+  {
     "name": "nbsp_only_required_text",
     "definition": {
       "fields": [

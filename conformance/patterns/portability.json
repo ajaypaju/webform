@@ -1,0 +1,194 @@
+[
+  {
+    "pattern": "a\\-b",
+    "accept": false
+  },
+  {
+    "pattern": "[a\\-z]",
+    "accept": true
+  },
+  {
+    "pattern": "a\\.b",
+    "accept": true
+  },
+  {
+    "pattern": "a{",
+    "accept": false
+  },
+  {
+    "pattern": "a]",
+    "accept": false
+  },
+  {
+    "pattern": "a}",
+    "accept": false
+  },
+  {
+    "pattern": "a{,3}",
+    "accept": false
+  },
+  {
+    "pattern": "a{2,3}",
+    "accept": true
+  },
+  {
+    "pattern": "a{2,}",
+    "accept": true
+  },
+  {
+    "pattern": "a{2}",
+    "accept": true
+  },
+  {
+    "pattern": "a{2,3}+",
+    "accept": false
+  },
+  {
+    "pattern": "\\01",
+    "accept": false
+  },
+  {
+    "pattern": "\\0",
+    "accept": true
+  },
+  {
+    "pattern": "\\p{L}",
+    "accept": true
+  },
+  {
+    "pattern": "\\p{Lu}",
+    "accept": true
+  },
+  {
+    "pattern": "\\P{Nd}",
+    "accept": true
+  },
+  {
+    "pattern": "\\p{Letter}",
+    "accept": false
+  },
+  {
+    "pattern": "\\p{Latin}",
+    "accept": false
+  },
+  {
+    "pattern": "\\p{Mn}",
+    "accept": false
+  },
+  {
+    "pattern": "\\p{Script=Latin}",
+    "accept": false
+  },
+  {
+    "pattern": "[\\p{L}\\-]+",
+    "accept": true
+  },
+  {
+    "pattern": "a\\/b",
+    "accept": true
+  },
+  {
+    "pattern": "\\@",
+    "accept": false
+  },
+  {
+    "pattern": "\\:",
+    "accept": false
+  },
+  {
+    "pattern": "\\ ",
+    "accept": false
+  },
+  {
+    "pattern": "\\$\\^\\\\\\.\\*\\+\\?\\(\\)\\[\\]\\{\\}\\|",
+    "accept": true
+  },
+  {
+    "pattern": "[]",
+    "accept": false
+  },
+  {
+    "pattern": "[^]",
+    "accept": false
+  },
+  {
+    "pattern": "[]a]",
+    "accept": false
+  },
+  {
+    "pattern": "[a-]",
+    "accept": true
+  },
+  {
+    "pattern": "a-b",
+    "accept": true
+  },
+  {
+    "pattern": "\\x41",
+    "accept": true
+  },
+  {
+    "pattern": "\\x4",
+    "accept": false
+  },
+  {
+    "pattern": "\\x{41}",
+    "accept": false
+  },
+  {
+    "pattern": "\\u0041",
+    "accept": false
+  },
+  {
+    "pattern": "\\cA",
+    "accept": true
+  },
+  {
+    "pattern": "\\bword\\b",
+    "accept": true
+  },
+  {
+    "pattern": "(?<year>\\d{4})-(?<month>\\d{2})",
+    "accept": true
+  },
+  {
+    "pattern": "(?:a|b)+",
+    "accept": true
+  },
+  {
+    "pattern": "(?i)a",
+    "accept": false
+  },
+  {
+    "pattern": "a*+",
+    "accept": false
+  },
+  {
+    "pattern": "(?=a)b",
+    "accept": false
+  },
+  {
+    "pattern": "(a)\\1",
+    "accept": false
+  },
+  {
+    "pattern": "[[:alpha:]]",
+    "accept": false
+  },
+  {
+    "pattern": "\\Aa",
+    "accept": false
+  },
+  {
+    "pattern": "\\Qa.b\\E",
+    "accept": false
+  },
+  {
+    "pattern": "a\\z",
+    "accept": false
+  },
+  {
+    "pattern": "^https://[a-z]+\\.example\\.com/[a-z0-9/]*$",
+    "accept": true
+  }
+]

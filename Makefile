@@ -3,7 +3,7 @@ COMPOSE_DEV := docker compose -f compose.yaml -f compose.dev.yaml
 export UID  := $(shell id -u)
 export GID  := $(shell id -g)
 
-.PHONY: up dev key down logs sh test reload
+.PHONY: up dev key down logs sh test test-php test-js reload
 
 ## up: build, generate APP_KEY, start everything and wait until healthy (the reviewer command)
 up: .env
@@ -36,8 +36,14 @@ sh:
 	$(COMPOSE) exec api bash
 
 ## test: the container env would shadow phpunit.xml (Laravel reads $_SERVER first), so pass the test values explicitly
-test:
+test: test-php test-js
+
+test-php:
 	$(COMPOSE) exec -e APP_ENV=testing -e DB_DATABASE=webform_test -e CACHE_STORE=array api php artisan test
+
+## test-js: cross-engine regex check (tests/js), no npm dependencies
+test-js:
+	docker run --rm -v "$(CURDIR):/app:ro" -w /app node:22-alpine node --test tests/js/*.test.mjs
 
 reload:
 	$(COMPOSE) exec api php artisan octane:reload

@@ -408,6 +408,47 @@
     "output": {}
   },
   {
+    "name": "multiselect_elements_are_trimmed_before_matching",
+    "definition": {
+      "fields": [
+        {
+          "id": "m",
+          "type": "multiselect",
+          "label": "M",
+          "required": false,
+          "options": [
+            {
+              "value": "a",
+              "label": "A"
+            },
+            {
+              "value": "b",
+              "label": "B"
+            },
+            {
+              "value": "c",
+              "label": "C"
+            }
+          ]
+        }
+      ]
+    },
+    "input": {
+      "m": [
+        " a ",
+        "b "
+      ]
+    },
+    "valid": true,
+    "errors": {},
+    "output": {
+      "m": [
+        "a",
+        "b"
+      ]
+    }
+  },
+  {
     "name": "radio_option_is_case_sensitive",
     "definition": {
       "fields": [

@@ -6,6 +6,8 @@ final class Normalizer
 {
     // WHY: exactly JS String.prototype.trim's set (WhiteSpace + LineTerminator), so the client and server agree
     // on what "empty" means. PHP's trim() and \s cover a different set.
+    private const MAX_SAFE_INTEGER = 9007199254740991;
+
     private const WHITESPACE = '\x{9}-\x{D}\x{20}\x{A0}\x{1680}\x{2000}-\x{200A}\x{2028}\x{2029}\x{202F}\x{205F}\x{3000}\x{FEFF}';
 
     /**
@@ -24,7 +26,8 @@ final class Normalizer
         }
 
         // WHY: JSON.stringify(5.0) is "5"; only PHP's decoder can tell them apart, so storing the int keeps parity.
-        if (is_float($value) && is_finite($value) && floor($value) === $value && abs($value) < PHP_INT_MAX) {
+        // Bounded by JS Number.MAX_SAFE_INTEGER: beyond it neither engine represents the value exactly.
+        if (is_float($value) && floor($value) === $value && abs($value) <= self::MAX_SAFE_INTEGER) {
             return (int) $value;
         }
 

@@ -11,7 +11,8 @@ case. Errors are codes, never messages. Files are arrays of cases grouped by con
 - `null`, `""`, whitespace-only, and `[]` mean "not provided": dropped from output, `required` if the field requires it.
 - Lengths (`min_length`, `max_length`, the 5000-character default cap for text) count Unicode code points, not bytes or UTF-16 units.
 - `email`: exactly one `@`, non-empty local part, no whitespace, domain contains `.`, ≤ 254 code points. Not RFC.
-- `integer`: the value must be a whole number; a whole-number float (`5.0`) passes and is output as the int `5`.
+- Whole-number floats with |value| ≤ 2^53−1 (JS `MAX_SAFE_INTEGER`) are stored as ints (`5.0` → `5`; JS can't tell them
+  apart); larger ones stay floats. `integer`: the stored value must be an int.
 - `option`: value must be one of the option values (case-sensitive, after trim); multiselect values must also be distinct.
 - `date`: `YYYY-MM-DD` and a real calendar date. `min`/`max` compare as dates.
 - `pattern`: search semantics, never implicitly anchored (`b` matches `abc`); authors write `^…$`. A match that hits the
@@ -25,5 +26,13 @@ case. Errors are codes, never messages. Files are arrays of cases grouped by con
 Codes: `field_id` (I5: `^[a-z0-9_]{1,40}$`), `duplicate_id`, `field_type`, `visible_if_field`, `visible_if_order` (I6: earlier
 fields only), `visible_if_op`, `visible_if_value`, `options_missing`, `options_forbidden`, `option_value`, `duplicate_option`,
 `pattern_invalid` (does not compile), `rule_forbidden` (rule not defined for the type), `rule_value`, `min_max`, and
-`pattern_unsafe` (I8 + PCRE/JS portability): backreferences, lookaround, atomic groups `(?>`, possessive `++ *+ ?+`,
-inline flags `(?i)`, `\A \Z \z \Q \E`, POSIX classes `[[:x:]]`, `(?P<`. Named groups `(?<n>…)` and `/` are fine.
+`pattern_unsafe` (I8 + PCRE/JS-u-mode portability): backreferences, lookaround, atomic groups `(?>`, possessive `++ *+ ?+`,
+inline flags `(?i)`, POSIX classes `[[:x:]]`, `(?P<`, lone `{ } ]`, `{,n}`, `[]`, `[^]`, octal (`\0` + digit), `\p{..}` other than
+the short General_Category names (`L Lu Ll Lt Lm Lo M N Nd Nl No P S Z`), and any escape outside `\d \D \w \W \s \S \b \B \n \r
+\t \f \0 \cX \xHH` plus escaped `^ $ \ . * + ? ( ) [ ] { } | /` (`\-` only inside a class). `patterns/portability.json`
+lists `{pattern, accept}` cases; `tests/js/patterns.test.mjs` proves every accepted pattern compiles in JS with the `u` flag.
+
+## Known semantic gaps (documented, not fixed; the server is authoritative, so the worst case is the client disagreeing
+on exotic input — never bad stored data)
+- `\s`: JS matches Unicode spaces (U+00A0, U+2028, U+3000 …); PCRE without UCP matches ASCII whitespace only.
+- `.`: neither matches `\n`; JS also excludes `\r`, U+2028 and U+2029, PCRE (with `u`) matches them.

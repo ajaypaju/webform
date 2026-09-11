@@ -23,6 +23,10 @@ final class DefinitionRules
 
     private const OPS = ['eq', 'neq', 'in'];
 
+    // WHY: \p{..} limited to short General_Category names: scripts need "Script=" in JS, and PCRE2 10.44 does not
+    // compile the long names (\p{Letter}) at all.
+    private const GENERAL_CATEGORIES = ['L', 'Lu', 'Ll', 'Lt', 'Lm', 'Lo', 'M', 'N', 'Nd', 'Nl', 'No', 'P', 'S', 'Z'];
+
     /**
      * Validate a form definition at save time. Semantics: conformance/README.md.
      *
@@ -192,9 +196,10 @@ final class DefinitionRules
     }
 
     /**
-     * Only the regex subset that PCRE and JS read identically, with nothing that can backtrack catastrophically
-     * on purpose: no backreferences, lookaround, atomic/possessive constructs, inline flags, PCRE-only escapes or
-     * POSIX classes. Groups may be "(...)", "(?:...)" or "(?<name>...)".
+     * Only the regex subset that PCRE and JS (compiled with the u flag) read identically, with nothing that can
+     * backtrack catastrophically on purpose: no backreferences, lookaround, atomic/possessive constructs, inline
+     * flags, PCRE-only escapes, POSIX classes, octal, script properties, or PCRE's lenient lone "{ } ]".
+     * Groups may be "(...)", "(?:...)" or "(?<name>...)". An unterminated class is left to the compile check.
      */
     private static function isPortable(string $pattern): bool
     {
@@ -206,7 +211,7 @@ final class DefinitionRules
             $next = $pattern[$i + 1] ?? '';
 
             if ($char === '\\') {
-                $consumed = self::portableEscapeLength(substr($pattern, $i + 1, 8));
+                $consumed = self::portableEscapeLength(substr($pattern, $i + 1, 24), $inClass);
 
                 if ($consumed === 0) {
                     return false;
@@ -227,17 +232,42 @@ final class DefinitionRules
                 continue;
             }
 
-            if ($char === '[') {
-                $inClass = true;
-                // WHY: a "]" right after "[" or "[^" is a literal, not the end of the class.
-                $i += $next === '^' ? 1 : 0;
-                $i += ($pattern[$i + 1] ?? '') === ']' ? 1 : 0;
-            } elseif ($char === '(' && ($next === '?' || $next === '*')) {
-                if (preg_match('/^\(\?(?::|<[A-Za-z_][A-Za-z0-9_]*>)/', substr($pattern, $i, 44)) !== 1) {
+            switch ($char) {
+                case '[':
+                    // WHY: "[]" and "[^]" are an empty / any-character class in JS but an unterminated class in PCRE.
+                    if ($next === ']' || ($next === '^' && ($pattern[$i + 2] ?? '') === ']')) {
+                        return false;
+                    }
+
+                    $inClass = true;
+                    break;
+                case '(':
+                    if (($next === '?' || $next === '*')
+                        && preg_match('/^\(\?(?::|<[A-Za-z_][A-Za-z0-9_]*>)/', substr($pattern, $i, 44)) !== 1) {
+                        return false;
+                    }
+                    break;
+                case '{':
+                    if (preg_match('/^\{\d+(?:,\d*)?\}/', substr($pattern, $i, 24), $m) !== 1) {
+                        return false;
+                    }
+
+                    $i += strlen($m[0]) - 1;
+
+                    if (($pattern[$i + 1] ?? '') === '+') {
+                        return false;
+                    }
+                    break;
+                case '}':
+                case ']':
                     return false;
-                }
-            } elseif (strpbrk($char, '+*?}') !== false && $next === '+') {
-                return false;
+                case '+':
+                case '*':
+                case '?':
+                    if ($next === '+') {
+                        return false;
+                    }
+                    break;
             }
         }
 
@@ -245,10 +275,18 @@ final class DefinitionRules
     }
 
     /** @return int bytes of the escape after the backslash, 0 when it is not portable */
-    private static function portableEscapeLength(string $tail): int
+    private static function portableEscapeLength(string $tail, bool $inClass): int
     {
-        return preg_match('/^(?:[^A-Za-z0-9]|[dDwWsSbBnrtf0]|c[A-Za-z]|x[0-9A-Fa-f]{2}|[pP]\{[A-Za-z_]+\})/', $tail, $m) === 1
-            ? strlen($m[0])
-            : 0;
+        // Identity escapes: only regex syntax characters (JS u-mode rejects the rest), "-" only inside a class.
+        $punctuation = '[\^$\\\\.*+?()\[\]{}|\/'.($inClass ? '\-' : '').']';
+        $categories = implode('|', self::GENERAL_CATEGORIES);
+
+        $portable = preg_match(
+            '/^(?:'.$punctuation.'|[dDwWsSbBnrtf]|0(?!\d)|c[A-Za-z]|x[0-9A-Fa-f]{2}|[pP]\{(?:'.$categories.')\})/',
+            $tail,
+            $m,
+        ) === 1;
+
+        return $portable ? strlen($m[0]) : 0;
     }
 }

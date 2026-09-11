@@ -56,7 +56,7 @@ app/Forms/PublishCompat.php        I5, I6 checks
 app/Forms/SafePattern.php          customer regex evaluation (I8)
 app/Ingest/SubmissionProducer.php  produce + flush + delivery check (I1)
 app/Console/Commands/ConsumeSubmissions.php
-resources/js/form.js               client renderer logic
+resources/js/form.js               client renderer logic; compiles patterns with the 'u' flag
 conformance/*.json                 {definition, input, expectedErrors} fixtures, run by BOTH
                                    the Pest suite and a JS test, so client and server can't drift
 loadtest/                          burst.mjs, reconcile.mjs, chaos.sh
