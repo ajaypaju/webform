@@ -59,7 +59,7 @@ final class VersionStore
     }
 
     /**
-     * @return array{status: string, current_version_id: ?string, versions: list<array{id: string, version_no: int, published_at: string}>}|null
+     * @return array{status: string, tenant_id: string, current_version_id: ?string, versions: list<array{id: string, version_no: int, published_at: string}>}|null
      *
      * @throws StoreUnavailable
      */
@@ -142,7 +142,7 @@ final class VersionStore
     /** @throws QueryException */
     private function formFromDatabase(string $formId): ?array
     {
-        $form = DB::table('forms')->where('id', $formId)->first(['status', 'current_version_id']);
+        $form = DB::table('forms')->where('id', $formId)->first(['status', 'tenant_id', 'current_version_id']);
 
         if ($form === null) {
             return null;
@@ -152,6 +152,7 @@ final class VersionStore
 
         return [
             'status' => $form->status,
+            'tenant_id' => $form->tenant_id,
             'current_version_id' => $form->current_version_id,
             'versions' => $versions->map(fn ($v) => ['id' => $v->id, 'version_no' => $v->version_no, 'published_at' => Carbon::parse($v->published_at)->toIso8601String()])->all(),
         ];

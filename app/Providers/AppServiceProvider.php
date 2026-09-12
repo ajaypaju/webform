@@ -3,7 +3,9 @@
 namespace App\Providers;
 
 use App\Database\RuntimeRole;
+use App\Ingest\RateLimiter;
 use App\Ingest\RenderToken;
+use App\Ingest\SubmissionProducer;
 use App\Ingest\VersionStore;
 use App\Kafka\Producer;
 use Illuminate\Support\Facades\DB;
@@ -19,15 +21,19 @@ class AppServiceProvider extends ServiceProvider
     {
         // WHY: singleton, not scoped. The producer holds no request state, and keeping its broker
         // connections open across Octane requests is the point: no TCP/metadata handshake per submission.
-        $this->app->singleton(Producer::class, fn () => new Producer(
-            config('kafka.brokers'),
-            config('kafka.producer'),
+        $producer = fn () => new Producer(config('kafka.brokers'), config('kafka.producer'));
+        $this->app->singleton(Producer::class, $producer);
+        $this->app->singleton(SubmissionProducer::class, fn () => new SubmissionProducer(
+            $producer, config('ingest.breaker.failures'), config('ingest.breaker.cooldown_seconds'), config('kafka.topics.submissions'),
         ));
 
         // WHY: singleton for the same reason — its worker-memory caches are the point (I12).
         $this->app->singleton(VersionStore::class);
 
         $this->app->singleton(RenderToken::class, fn () => new RenderToken((string) config('ingest.render_token_key')));
+
+        // WHY: the fallback buckets and the once-a-minute log live in the instance; one per worker (config/octane.php warm).
+        $this->app->singleton(RateLimiter::class);
     }
 
     /**

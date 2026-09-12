@@ -101,7 +101,7 @@ final class FormController extends Controller
             $summaries = $priors->push($version)->map($this->versionSummary(...))->all();
             DB::afterCommit(fn () => $store->put(
                 $this->versionSummary($version) + ['form_id' => $form->id, 'tenant_id' => $tenant->tenantId, 'definition' => $version->definition],
-                ['status' => 'published', 'current_version_id' => $version->id, 'versions' => $summaries],
+                ['status' => 'published', 'tenant_id' => $tenant->tenantId, 'current_version_id' => $version->id, 'versions' => $summaries],
             ));
 
             return response()->json(['version_id' => $version->id, 'version_no' => $version->version_no], 201);

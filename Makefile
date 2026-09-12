@@ -20,15 +20,17 @@ dev: .env assets
 .env:
 	cp .env.example .env
 
-## key: fill APP_KEY and RENDER_TOKEN_KEY in .env if empty, via a one-off container running as the host user
+## key: fill APP_KEY, RENDER_TOKEN_KEY and IP_HASH_KEY in .env if empty, via a one-off container running as the host user
 key: .env
 	@if grep -q '^APP_KEY=$$' .env; then \
 		docker run --rm --user "$(UID):$(GID)" -v "$(CURDIR)/.env:/app/.env" webform-app php artisan key:generate --force --ansi; \
 	fi
-	@if ! grep -q '^RENDER_TOKEN_KEY=.\+' .env; then \
-		sed -i.bak '/^RENDER_TOKEN_KEY=$$/d' .env && rm -f .env.bak; \
-		printf 'RENDER_TOKEN_KEY=%s\n' "$$(docker run --rm webform-app php -r 'echo base64_encode(random_bytes(32));')" >> .env; \
-	fi
+	@for var in RENDER_TOKEN_KEY IP_HASH_KEY; do \
+		if ! grep -q "^$$var=.\+" .env; then \
+			sed -i.bak "/^$$var=$$/d" .env && rm -f .env.bak; \
+			printf '%s=%s\n' "$$var" "$$(docker run --rm webform-app php -r 'echo base64_encode(random_bytes(32));')" >> .env; \
+		fi; \
+	done
 
 ## assets: build the form page JS/CSS into public/build on the host (needed by `make dev`, whose bind mount hides the image's build)
 assets:

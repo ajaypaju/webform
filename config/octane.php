@@ -130,8 +130,16 @@ return [
     |
     */
 
+    // WHY: a singleton first resolved inside a request lives in that request's sandbox container and is gone
+    // afterwards. Anything that must keep per-worker state (broker connection, circuit breaker, version LRU,
+    // fallback rate buckets) has to be resolved at worker boot — that is what this list does.
     'warm' => [
         ...Octane::defaultServicesToWarm(),
+        App\Kafka\Producer::class,
+        App\Ingest\SubmissionProducer::class,
+        App\Ingest\VersionStore::class,
+        App\Ingest\RateLimiter::class,
+        App\Ingest\RenderToken::class,
     ],
 
     'flush' => [

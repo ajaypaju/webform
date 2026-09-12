@@ -6,6 +6,8 @@ use Illuminate\Foundation\Configuration\Middleware;
 use App\Http\Middleware\AuthenticateApiKey;
 use App\Http\Middleware\PublicHeaders;
 use App\Http\ValidationFailed;
+use App\Ingest\BrokerUnavailable;
+use App\Ingest\RateLimited;
 use App\Ingest\StoreUnavailable;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Middleware\SubstituteBindings;
@@ -41,6 +43,12 @@ return Application::configure(basePath: dirname(__DIR__))
         // for an unmatched path.
         if (env('APP_ROLE') === 'ingest') {
             $middleware->append(PublicHeaders::class);
+
+            // I13: the per-IP bucket must see the visitor, not the load balancer. Unset = trust nobody, so a spoofed
+            // X-Forwarded-For from the open internet is ignored.
+            if (($proxies = trim((string) env('TRUSTED_PROXIES'))) !== '') {
+                $middleware->trustProxies(at: $proxies === '*' ? '*' : array_map('trim', explode(',', $proxies)));
+            }
         }
 
         // WHY: route-model binding must run inside the api-key transaction, after set_config, or RLS returns no rows.
@@ -53,6 +61,12 @@ return Application::configure(basePath: dirname(__DIR__))
 
         // I12: the store had no reachable source for a cold key; the client should retry, not report a bug.
         $exceptions->render(fn (StoreUnavailable $e) => response()->json(['error' => 'unavailable'], 503, ['Retry-After' => '5']));
+
+        // I1: nothing was acked; retry with the same submission id.
+        $exceptions->render(fn (BrokerUnavailable $e) => response()->json(['error' => 'unavailable'], 503, ['Retry-After' => '5']));
+
+        // I13
+        $exceptions->render(fn (RateLimited $e) => response()->json(['error' => 'rate_limited'], 429, ['Retry-After' => (string) $e->retryAfter]));
 
         // 422s carry codes, never messages, on both the control plane and the public API.
         $exceptions->render(fn (ValidationFailed $e) => response()->json(['errors' => $e->errors], $e->status));
