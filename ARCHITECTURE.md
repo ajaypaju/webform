@@ -118,18 +118,25 @@ sequenceDiagram
         I-->>C: 202
         Note over R,P: if the first produce did land, the topic now holds the id twice
     end
-    R->>K: batch of records (enable.auto.commit=false)
+    R->>K: batch: up to 500 records or 200 ms (enable.auto.commit=false)
+    K->>K: envelope check only (v, ids, received_at); malformed -> submissions.dlq with a reason header
+    K->>K: dedupe ids inside the batch (a multi-row INSERT can't ON CONFLICT against itself)
     K->>P: BEGIN; INSERT submission_ids ON CONFLICT DO NOTHING RETURNING id
-    K->>P: INSERT submissions only for returned ids; COMMIT
-    Note over K,P: duplicate ids collapse here (I2)
+    K->>P: INSERT submissions only for returned ids, one statement; COMMIT
+    Note over K,P: duplicate ids collapse here (I2); received_at is the envelope's, never now()
     K->>R: commit offsets (only after COMMIT)
+    alt PostgreSQL down
+        K->>K: retry the same batch from memory with backoff (0.5 s .. 30 s); offsets untouched
+    end
 ```
 
 The ambiguous ack is the case that matters: the client cannot tell "not produced" from "produced, report lost". Both resolve the same way because the retry reuses the id and `submission_ids` is a global unique key.
 
 Reads before the submit: `GET /v1/forms/{form}/versions/{version}` is `Cache-Control: public, max-age=31536000, immutable` (versions never change), `GET /v1/forms/{form}` is `max-age=30, stale-while-revalidate=60`, and `GET /f/{form}` is `no-store` because it embeds a per-render token. Designed: a CDN-cacheable page shell plus a tiny token endpoint, so the HTML itself becomes cacheable and only the token round-trips to `ingest`.
 
-The order of checks is by cost: rate limits touch only Redis (or worker memory), the token check is a local HMAC, version resolution reads the form state the page load already cached, and only then does validation and the broker round-trip happen. The consumer is the next slice: today submissions are durable on the topic but not yet in PostgreSQL.
+The order of checks is by cost: rate limits touch only Redis (or worker memory), the token check is a local HMAC, version resolution reads the form state the page load already cached, and only then does validation and the broker round-trip happen.
+
+The consumer (`submissions:consume`, role `webform_writer`) is the only writer of `submissions`. Its two commits are ordered on purpose: database first, offsets second. A crash between them replays the batch, and `submission_ids` rejects every id it already holds — that replay is the exactly-once proof in [tests/Feature/Consumer/ConsumerTest.php](tests/Feature/Consumer/ConsumerTest.php). The reverse order would lose rows. Poison is handled at two levels without ever blocking a partition: a malformed envelope goes to `submissions.dlq` with the original bytes and a `reason` header before its offset advances; a row the schema refuses (SQLSTATE 23xxx) makes the batch fall back to row-by-row so the good rows land and the bad one is dead-lettered. A database outage is the opposite case: the batch is retried from memory with capped exponential backoff and nothing is skipped.
 
 ## 5. Requirements
 
@@ -242,9 +249,10 @@ A definition is validated twice: `resources/js/form/validate.js` in the browser 
 | Failure | System behaviour | User-visible effect | Recovery |
 |---|---|---|---|
 | Redpanda down or slow | No clean report within `message.timeout.ms` → 503 + `Retry-After`; nothing acked. After N consecutive failures the per-worker breaker answers 503 immediately for a cooldown, then probes | The page keeps the submission in localStorage and retries with the same id (backoff, Retry-After); the user sees "kept on this device" | Broker returns; probe succeeds; duplicates collapse in `submission_ids` |
-| PostgreSQL down | Ingest serves pages and definitions from the version store (worker LRU, then Redis; publish pre-warms both); form state is served stale; consumer stops committing, topic absorbs backlog; `api` 503. A cold `ingest` instance still starts (role check deferred to first connection) and serves anything Redis holds; only a key in neither cache returns 503 + `Retry-After` | Published forms keep working; dashboard down; a form never read since its publish *and* evicted from Redis is unavailable until the DB returns | Consumer drains; nothing was acked without a broker fsync. In production the version keys move to object storage behind the CDN, so Redis is not the only Postgres-independent copy |
+| PostgreSQL down | Ingest serves pages and definitions from the version store (worker LRU, then Redis; publish pre-warms both); form state is served stale; the consumer retries its in-flight batch with backoff and commits no offsets, so the topic absorbs the backlog; `api` 503. A cold `ingest` instance still starts (role check deferred to first connection) and serves anything Redis holds; only a key in neither cache returns 503 + `Retry-After` | Published forms keep working; dashboard down; a form never read since its publish *and* evicted from Redis is unavailable until the DB returns | Consumer drains; nothing was acked without a broker fsync. In production the version keys move to object storage behind the CDN, so Redis is not the only Postgres-independent copy |
 | Redis down | Rate limiter switches to per-worker buckets and logs once a minute; version store falls through to PostgreSQL; publish still succeeds | None; spam limits weaken to per-worker; slightly more DB reads on ingest | Shared counters resume; read-through refills the store |
-| Consumer down | Topic retains; lag grows | Submissions appear late | Restart from last committed offset; replay is idempotent |
+| Consumer down | Topic retains; lag grows (logged per batch) | Submissions appear late | `restart: unless-stopped`; resumes from the last committed offset; the replayed batch collapses in `submission_ids` |
+| Poison message | Malformed envelope → `submissions.dlq` + reason header, offset advances; schema-rejected row → row-by-row fallback, offender dead-lettered | None; the DLQ is the operator's queue | Inspect the DLQ; the original bytes are intact |
 | One ingest instance down | Removed from the balancer; in-flight requests without a report are unacked | A few network errors; clients retry with the same id | Autoscaling replaces it (designed) |
 | CDN down (designed) | Page and definition requests fall through to `ingest` | Slower loads | `immutable` responses refill |
 | Redpanda disk full | Produces fail → 503 | As broker down | Retention or capacity change |
@@ -272,7 +280,7 @@ A definition is validated twice: `resources/js/form/validate.js` in the browser 
 | Four least-privilege roles, RLS policies, `resolve_api_key`, runtime role check, `migrate` service | Built | `database/migrations/…000003…`, `app/Database/RuntimeRole.php`, `docker/postgres/init.sh`, `compose.yaml` |
 | Public definition JSON (`immutable`), current-version pointer, version store (I12), form page with CSP and JSON data block (I9), render token issue/verify (I13) | Built | `app/Ingest/`, `app/Http/Controllers/Public/`, `resources/views/form/`, `tests/Feature/Ingest/` |
 | `POST /v1/forms/{form}/submissions`: rate limits (I13), token + honeypot decoys (I13), pinning window (I3), validation (I6, I7), envelope with `received_at` and pseudonymous meta, produce + flush + report (I1, I14), circuit breaker | Built | `app/Http/Controllers/Public/SubmissionController.php`, `app/Ingest/`, `tests/Feature/Ingest/SubmissionsTest.php` |
-| Consumer: transactional dedupe, offset commit (I2) | Designed | section 4 |
+| Consumer: batches, one transaction with `submission_ids` dedupe, offsets after commit, DLQ, backoff, SIGTERM, daily partition upkeep via a definer function (I2) | Built | `app/Consumer/`, `app/Console/Commands/ConsumeSubmissions.php`, `tests/Feature/Consumer/`, `tests/Feature/Ingest/EndToEndTest.php` |
 | Control-plane API: API keys (`tenants:create`), scoped tenant binding + request transaction (I11), forms CRUD, drafts with advisory validation and size caps, publish with `PublishCompat` (I5), versions | Built | `app/Http/`, `app/Tenancy/`, `app/Forms/PublishCompat.php`, `conformance/publish/`, `tests/Feature/Api/` |
 | `validate.js` (pure port) with the full conformance parity run; `render.js` (visibility, errors) | Built | `resources/js/form/`, `tests/js/validate.test.mjs` |
 | Client-side submit: UUIDv7 reused on retry, backoff + jitter with Retry-After, pending submission in localStorage restored on load, 409/422 handling (I2) | Built | `resources/js/form/submit.js`, `render.js`, `tests/js/submit.test.mjs` |

@@ -69,7 +69,10 @@ resources/js/form/patterns.js      pattern checks in a Web Worker (pattern-worke
 resources/js/form/submit.js        UUIDv7, backoff + jitter, Retry-After; the pending submission lives in localStorage until acked (I2)
 app/Forms/SafePattern.php          customer regex evaluation (I8)
 app/Ingest/SubmissionProducer.php  produce + flush + delivery check (I1)
-app/Console/Commands/ConsumeSubmissions.php
+app/Console/Commands/ConsumeSubmissions.php  submissions:consume — subscribe, signals, daily ensure-partitions
+app/Consumer/Consumer.php          I2: batch (500 / 200 ms) -> one transaction -> DLQ rejects -> commit offsets; backoff on DB errors
+app/Consumer/BatchWriter.php       I2: in-batch dedupe, INSERT submission_ids ON CONFLICT DO NOTHING RETURNING, INSERT submissions
+app/Consumer/Envelope.php          envelope validation only (v, ids, received_at); data is never re-validated (I3)
 conformance/*.json                 {definition, input, expectedErrors} fixtures, run by BOTH
                                    the Pest suite and a JS test, so client and server can't drift
 loadtest/                          burst.mjs, reconcile.mjs, chaos.sh
@@ -134,6 +137,7 @@ HTTP caching: `GET /v1/forms/{form}/versions/{version}` (definition JSON) -> `Ca
 ```
 docker compose up --build              full stack
 docker compose exec api php artisan test
+docker compose logs -f consumer         one structured line per batch: count, unique, inserted, duplicates, rejected, lag, duration_ms
 cd loadtest && node burst.mjs          burst + acked-id capture
 cd loadtest && node reconcile.mjs      reconciliation report
 ./loadtest/chaos.sh                    burst while stopping consumer/postgres/broker, then reconcile
