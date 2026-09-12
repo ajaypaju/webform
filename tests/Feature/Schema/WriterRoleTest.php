@@ -33,3 +33,15 @@ it('returns only new ids from submission_ids ON CONFLICT DO NOTHING', function (
 
     expect(fn () => $db->table('submission_ids')->pluck('received_at'))->toThrow(QueryException::class, 'permission denied');
 });
+
+it('lets the writer role keep partitions ahead through the definer function, but not create tables itself', function () {
+    $db = DB::connection('pgsql_writer');
+
+    expect(array_column($db->select('select ensure_submission_partitions(4) as name'), 'name'))->toHaveCount(4)
+        ->and($db->scalar("select count(*) from pg_inherits where inhparent = 'submissions'::regclass"))->toBeGreaterThanOrEqual(5);
+
+    expect(fn () => $db->statement('create table submissions_2099_01 partition of submissions for values from (\'2099-01-01\') to (\'2099-02-01\')'))
+        ->toThrow(QueryException::class, 'permission denied');
+    expect(fn () => DB::connection('pgsql_ingest')->select('select ensure_submission_partitions(1)'))
+        ->toThrow(QueryException::class, 'permission denied');
+});

@@ -35,8 +35,11 @@ it('creates the current and upcoming monthly partitions idempotently', function 
     $after = $count();
     $this->artisan('submissions:ensure-partitions')->assertExitCode(0);
 
-    expect($after)->toBe($before + 3)
-        ->and($count())->toBe($after);
+    // WHY: partitions are tables and survive truncation, so another test may already have created this month's.
+    $expected = collect(range(0, 2))->map(fn ($i) => 'submissions_'.now('UTC')->startOfMonth()->addMonths($i)->format('Y_m'));
+    expect($after)->toBeGreaterThanOrEqual($before)
+        ->and($count())->toBe($after)
+        ->and($expected->every(fn ($name) => DB::scalar('select to_regclass(?) is not null', [$name])))->toBeTrue();
 
     $a = tenant();
     ['form' => $form, 'version' => $version] = form($a);
