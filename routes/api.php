@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\FormController;
+use App\Http\Controllers\SubmissionController;
 use Illuminate\Support\Facades\Route;
 
 // Control plane (APP_ROLE=api): API-key auth, forms, drafts, publish, submissions, export.
@@ -12,4 +13,6 @@ Route::prefix('v1')->middleware('api-key')->group(function () {
     Route::put('forms/{form}/draft', [FormController::class, 'updateDraft'])->whereUuid('form');
     Route::post('forms/{form}/publish', [FormController::class, 'publish'])->whereUuid('form');
     Route::get('forms/{form}/versions', [FormController::class, 'versions'])->whereUuid('form');
+    Route::get('forms/{form}/submissions', [SubmissionController::class, 'index'])->whereUuid('form');
+    Route::get('forms/{form}/submissions/export.csv', [SubmissionController::class, 'export'])->whereUuid('form');
 });

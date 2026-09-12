@@ -137,3 +137,15 @@ function submit(string $form, array $body)
         ->withHeaders(['User-Agent' => 'PestBrowser/1.0', 'Referer' => 'https://customer.example/pricing?x=1'])
         ->postJson("/v1/forms/{$form}/submissions", $body);
 }
+
+/** Insert a stored submission as the owner; $receivedAt as a full timestamp string so ties can be forced. */
+function storeRow(string $tenant, string $form, string $version, array $data, string $receivedAt): string
+{
+    $id = (string) Str::uuid7();
+    DB::connection('pgsql')->table('submissions')->insert([
+        'id' => $id, 'tenant_id' => $tenant, 'form_id' => $form, 'form_version_id' => $version,
+        'data' => json_encode($data), 'meta' => '{}', 'received_at' => $receivedAt,
+    ]);
+
+    return $id;
+}
