@@ -52,14 +52,14 @@ final class Producer implements Sender
      *
      * @throws DeliveryFailed if the broker did not ack within message.timeout.ms, acked with an error, or produce() itself failed
      */
-    public function send(string $topic, string $key, string $payload): void
+    public function send(string $topic, string $key, string $payload, array $headers = []): void
     {
         $this->awaiting = bin2hex(random_bytes(8));
         $this->result = null;
 
         try {
             // I14: partition is chosen by hashing the key, so one hot form spreads across partitions.
-            $this->topic($topic)->produce(RD_KAFKA_PARTITION_UA, 0, $payload, $key, $this->awaiting);
+            $this->topic($topic)->producev(RD_KAFKA_PARTITION_UA, 0, $payload, $key, $headers ?: null, null, $this->awaiting);
 
             // I1: produce() only enqueued locally. Drain the queue (bounded), then trust nothing but this
             // message's own delivery report.

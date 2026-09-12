@@ -15,7 +15,7 @@ function scriptedSender(): Sender
 
         public ?int $failWith = null;
 
-        public function send(string $topic, string $key, string $payload): void
+        public function send(string $topic, string $key, string $payload, array $headers = []): void
         {
             $this->calls++;
 

@@ -34,7 +34,7 @@ final class TopicTail
     }
 
     /**
-     * @return list<array{key: string, payload: array<string, mixed>}> messages produced since construction
+     * @return list<array{key: string, payload: mixed, raw: string, headers: array<string, string>}> messages produced since construction
      */
     public function drain(int $expect = 1, int $waitMs = 3000): array
     {
@@ -45,7 +45,7 @@ final class TopicTail
             $message = $this->consumer->consume(200);
 
             if ($message->err === RD_KAFKA_RESP_ERR_NO_ERROR) {
-                $messages[] = ['key' => $message->key, 'payload' => json_decode($message->payload, true)];
+                $messages[] = ['key' => $message->key, 'payload' => json_decode($message->payload, true), 'raw' => $message->payload, 'headers' => $message->headers ?? []];
             }
         }
 

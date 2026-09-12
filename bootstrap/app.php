@@ -32,7 +32,8 @@ return Application::configure(basePath: dirname(__DIR__))
             match ($role) {
                 'api' => Route::middleware('api')->group(__DIR__.'/../routes/api.php'),
                 'ingest' => Route::middleware('api')->group(__DIR__.'/../routes/public.php'),
-                default => throw new RuntimeException('APP_ROLE must be "api" or "ingest".'),
+                'consumer' => null,
+                default => throw new RuntimeException('APP_ROLE must be "api", "ingest" or "consumer".'),
             };
         },
     )

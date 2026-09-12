@@ -8,42 +8,6 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Tests\Support\TopicTail;
 
-const IP = '203.0.113.9';
-
-function fields(): array
-{
-    return [
-        ['id' => 'email', 'type' => 'email', 'label' => 'Email', 'required' => true],
-        ['id' => 'plan', 'type' => 'select', 'label' => 'Plan', 'required' => false, 'options' => [['value' => 'free', 'label' => 'Free'], ['value' => 'pro', 'label' => 'Pro']]],
-        ['id' => 'seats', 'type' => 'number', 'label' => 'Seats', 'required' => false, 'rules' => ['integer' => true, 'min' => 1],
-            'visible_if' => ['field' => 'plan', 'op' => 'eq', 'value' => 'pro']],
-        ['id' => 'code', 'type' => 'text', 'label' => 'Code', 'required' => false, 'rules' => ['pattern' => '^[A-Z]{3}$']],
-    ];
-}
-
-/** A published form with fields(); returns [form, version]. */
-function liveForm(): array
-{
-    return form(tenant(), 'published', ['fields' => fields()]);
-}
-
-function payload(string $form, string $version, array $data, int $issuedAgo = 5, array $extra = []): array
-{
-    return [
-        'submission_id' => (string) Str::uuid7(),
-        'form_version_id' => $version,
-        'render_token' => app(RenderToken::class)->issue($form, $version, now()->timestamp - $issuedAgo),
-        'data' => $data,
-    ] + $extra;
-}
-
-function submit(string $form, array $body)
-{
-    return test()->withServerVariables(['REMOTE_ADDR' => IP])
-        ->withHeaders(['User-Agent' => 'PestBrowser/1.0', 'Referer' => 'https://customer.example/pricing?x=1'])
-        ->postJson("/v1/forms/{$form}/submissions", $body);
-}
-
 // I1, I7, I14
 it('accepts a valid submission with 202 and puts exactly the envelope on the topic, keyed by submission id', function () {
     ['form' => $form, 'version' => $version] = liveForm();
@@ -113,7 +77,7 @@ it('returns 503 while the broker is down, opens the circuit, and recovers after 
 
         public bool $down = true;
 
-        public function send(string $topic, string $key, string $payload): void
+        public function send(string $topic, string $key, string $payload, array $headers = []): void
         {
             $this->calls++;
 
