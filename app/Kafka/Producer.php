@@ -8,7 +8,7 @@ use RdKafka\Message;
 use RdKafka\Producer as RdKafkaProducer;
 use RdKafka\ProducerTopic;
 
-final class Producer
+final class Producer implements Sender
 {
     private RdKafkaProducer $producer;
 
