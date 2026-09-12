@@ -4,17 +4,18 @@ use Illuminate\Database\ConnectionInterface;
 use Illuminate\Foundation\Testing\DatabaseTruncation;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Redis;
+use App\Ingest\RenderToken;
 use Illuminate\Support\Str;
 use Tests\IngestTestCase;
 use Tests\TestCase;
 
 // WHY: Feature/Ingest boots with APP_ROLE=ingest, so the api-role folders are listed instead of all of Feature.
-pest()->extend(TestCase::class)->in('Feature/Api', 'Feature/Console', 'Feature/Kafka', 'Feature/Schema', 'Feature/HealthTest.php');
+pest()->extend(TestCase::class)->in('Feature/Api', 'Feature/Console', 'Feature/Consumer', 'Feature/Kafka', 'Feature/Schema', 'Feature/HealthTest.php');
 pest()->extend(IngestTestCase::class)->in('Feature/Ingest');
 
 // WHY: truncation, not a wrapping transaction — the RLS tests open one connection per role, and a transaction on
 // the owner's connection would be invisible to them.
-pest()->use(DatabaseTruncation::class)->in('Feature/Schema', 'Feature/Api', 'Feature/Console', 'Feature/Ingest');
+pest()->use(DatabaseTruncation::class)->in('Feature/Schema', 'Feature/Api', 'Feature/Console', 'Feature/Consumer', 'Feature/Ingest');
 
 // WHY: HTTP tests exercise the real api role (RLS included). Truncation and migrations already ran on the owner
 // connection in setUp; only the request path switches.
@@ -97,4 +98,42 @@ function apiKey(string $tenantId): string
     DB::connection('pgsql')->table('api_keys')->insert(['id' => (string) Str::uuid7(), 'tenant_id' => $tenantId, 'key_hash' => hash('sha256', $key)]);
 
     return $key;
+}
+
+// --- Ingest request helpers (tests/Feature/Ingest) -------------------------------------------------
+
+const IP = '203.0.113.9';
+
+function fields(): array
+{
+    return [
+        ['id' => 'email', 'type' => 'email', 'label' => 'Email', 'required' => true],
+        ['id' => 'plan', 'type' => 'select', 'label' => 'Plan', 'required' => false, 'options' => [['value' => 'free', 'label' => 'Free'], ['value' => 'pro', 'label' => 'Pro']]],
+        ['id' => 'seats', 'type' => 'number', 'label' => 'Seats', 'required' => false, 'rules' => ['integer' => true, 'min' => 1],
+            'visible_if' => ['field' => 'plan', 'op' => 'eq', 'value' => 'pro']],
+        ['id' => 'code', 'type' => 'text', 'label' => 'Code', 'required' => false, 'rules' => ['pattern' => '^[A-Z]{3}$']],
+    ];
+}
+
+/** A published form with fields(); returns [form, version]. */
+function liveForm(): array
+{
+    return form(tenant(), 'published', ['fields' => fields()]);
+}
+
+function payload(string $form, string $version, array $data, int $issuedAgo = 5, array $extra = []): array
+{
+    return [
+        'submission_id' => (string) Str::uuid7(),
+        'form_version_id' => $version,
+        'render_token' => app(RenderToken::class)->issue($form, $version, now()->timestamp - $issuedAgo),
+        'data' => $data,
+    ] + $extra;
+}
+
+function submit(string $form, array $body)
+{
+    return test()->withServerVariables(['REMOTE_ADDR' => IP])
+        ->withHeaders(['User-Agent' => 'PestBrowser/1.0', 'Referer' => 'https://customer.example/pricing?x=1'])
+        ->postJson("/v1/forms/{$form}/submissions", $body);
 }
