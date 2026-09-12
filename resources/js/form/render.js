@@ -4,23 +4,7 @@
 import { validate, visibleIds, normalize } from './validate.js';
 import { patternMatcher } from './patterns.js';
 import { uuidv7, submitWithRetry } from './submit.js';
-
-const MESSAGES = {
-  required: 'This field is required.',
-  type: 'This value has the wrong type.',
-  min_length: 'Too short.',
-  max_length: 'Too long.',
-  pattern: 'This value does not match the expected format.',
-  email: 'Enter a valid email address.',
-  min: 'Too small or too early.',
-  max: 'Too large or too late.',
-  integer: 'Enter a whole number.',
-  option: 'Choose one of the listed options.',
-  min_selected: 'Select more options.',
-  max_selected: 'Select fewer options.',
-  date: 'Enter a valid date (YYYY-MM-DD).',
-  unknown_field: 'Unexpected field.',
-};
+import { SUBMISSION_MESSAGES as MESSAGES } from './messages.js';
 
 // WHY: a resumed submission carries a fresh render token; sending it before the minimum fill time would be
 // treated as a bot.
@@ -127,10 +111,14 @@ function clearPending(formId) {
   }
 }
 
-export function enhance(form) {
-  const { fields } = readDefinition(document);
+/**
+ * @param {{definition?: object, preview?: boolean}} [options] preview: validate and show errors only — no network,
+ *   no localStorage — used by the dashboard's live preview against a local definition.
+ */
+export function enhance(form, { definition = null, preview = false } = {}) {
+  const { fields } = definition ?? readDefinition(document);
   const formId = form.dataset.formId;
-  const status = document.querySelector('[data-status]');
+  const status = form.querySelector('[data-status]') ?? document.querySelector('[data-status]');
   const say = (text) => { if (status) status.textContent = text; };
 
   const refresh = () => applyVisibility(form, fields, collect(form, fields));
@@ -139,7 +127,7 @@ export function enhance(form) {
   refresh();
 
   // WHY: one id per submission attempt series, reused on every retry, so the server can collapse duplicates (I2).
-  let pending = loadPending(formId);
+  let pending = preview ? null : loadPending(formId);
 
   async function send(input) {
     const body = {
@@ -187,6 +175,11 @@ export function enhance(form) {
     const result = validate({ fields }, input, await patternMatcher(fields, values));
     showErrors(form, result.errors);
     if (!result.valid) return;
+
+    if (preview) {
+      say('Valid. In the live form this would now be submitted.');
+      return;
+    }
 
     pending ??= { submission_id: uuidv7() };
     await send(input);

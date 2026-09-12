@@ -1,0 +1,32 @@
+main { max-width: 72rem; }
+.top { display: flex; justify-content: space-between; align-items: center; max-width: 72rem; margin: 1rem auto 0; padding: 0 1rem; }
+.brand { font-weight: 700; text-decoration: none; color: inherit; }
+.inline { display: inline; }
+button.link { background: none; color: #1a1a1a; text-decoration: underline; padding: 0; }
+.card { max-width: 28rem; }
+.muted { color: #555; }
+.sr-only { position: absolute; left: -10000px; width: 1px; height: 1px; overflow: hidden; }
+.row { display: flex; gap: .5rem; align-items: center; margin-bottom: 1rem; }
+.row input { flex: 1; }
+table { width: 100%; border-collapse: collapse; }
+th, td { text-align: left; padding: .5rem; border-bottom: 1px solid #ddd; }
+.builder-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; }
+.actions { display: flex; gap: .5rem; }
+button.primary { background: #0b5fff; }
+button.danger { background: #b00020; }
+.columns { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; }
+@media (max-width: 60rem) { .columns { grid-template-columns: 1fr; } }
+.field-box { border: 1px solid #ccc; border-radius: 6px; padding: .75rem 1rem; margin-bottom: 1rem; }
+.field-box.has-errors { border-color: #b00020; }
+.field-box legend { font-weight: 600; padding: 0 .25rem; }
+.field { display: grid; grid-template-columns: 9rem 1fr; align-items: center; gap: .5rem; margin: .35rem 0; font-weight: 400; }
+.field > span { color: #333; }
+.field input[type="text"], .field input[type="number"], .field input[type="date"], .field select { width: 100%; }
+.options, .rules, .visibility { margin: .5rem 0; padding: .5rem; background: #f3f3f3; border-radius: 4px; }
+.options .row { margin-bottom: .35rem; }
+.controls { display: flex; gap: .5rem; margin-top: .5rem; }
+.controls button { padding: .35rem .7rem; }
+.errors { color: #b00020; padding-left: 1.2rem; }
+.errors:empty { display: none; }
+.add { display: flex; gap: .5rem; align-items: center; }
+.preview form { border: 1px dashed #aaa; border-radius: 6px; padding: 1rem; }

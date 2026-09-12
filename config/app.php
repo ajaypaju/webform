@@ -18,6 +18,9 @@ return [
     // api | ingest | consumer — which process this is (routes: bootstrap/app.php; database role: App\Database\RuntimeRole).
     'role' => env('APP_ROLE'),
 
+    // Where the public form pages live (the ingest origin); the dashboard links there.
+    'public_url' => env('PUBLIC_URL', 'http://localhost:8080'),
+
     /*
     |--------------------------------------------------------------------------
     | Application Environment
