@@ -10,16 +10,16 @@ use Tests\IngestTestCase;
 use Tests\TestCase;
 
 // WHY: Feature/Ingest boots with APP_ROLE=ingest, so the api-role folders are listed instead of all of Feature.
-pest()->extend(TestCase::class)->in('Feature/Api', 'Feature/Console', 'Feature/Consumer', 'Feature/Kafka', 'Feature/Schema', 'Feature/HealthTest.php');
+pest()->extend(TestCase::class)->in('Feature/Api', 'Feature/Console', 'Feature/Consumer', 'Feature/Dashboard', 'Feature/Kafka', 'Feature/Schema', 'Feature/HealthTest.php');
 pest()->extend(IngestTestCase::class)->in('Feature/Ingest');
 
 // WHY: truncation, not a wrapping transaction — the RLS tests open one connection per role, and a transaction on
 // the owner's connection would be invisible to them.
-pest()->use(DatabaseTruncation::class)->in('Feature/Schema', 'Feature/Api', 'Feature/Console', 'Feature/Consumer', 'Feature/Ingest');
+pest()->use(DatabaseTruncation::class)->in('Feature/Schema', 'Feature/Api', 'Feature/Console', 'Feature/Consumer', 'Feature/Dashboard', 'Feature/Ingest');
 
 // WHY: HTTP tests exercise the real api role (RLS included). Truncation and migrations already ran on the owner
 // connection in setUp; only the request path switches.
-pest()->beforeEach(fn () => config(['database.default' => 'pgsql_api']))->in('Feature/Api');
+pest()->beforeEach(fn () => config(['database.default' => 'pgsql_api']))->in('Feature/Api', 'Feature/Dashboard');
 pest()->beforeEach(function () {
     config(['database.default' => 'pgsql_ingest']);
     Redis::flushdb();

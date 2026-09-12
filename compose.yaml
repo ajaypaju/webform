@@ -150,6 +150,8 @@ services:
       APP_ROLE: api
       DB_USERNAME: webform_api
       DB_PASSWORD: ${DB_API_PASSWORD}
+      # Dashboard sessions hold only tenant_id, server-side; ingest keeps SESSION_DRIVER=array and sets no cookie.
+      SESSION_DRIVER: redis
     ports:
       - "8000:8000"
 
@@ -159,6 +161,7 @@ services:
       APP_ROLE: ingest
       DB_USERNAME: webform_ingest
       DB_PASSWORD: ${DB_INGEST_PASSWORD}
+      SESSION_DRIVER: array
     ports:
       - "8080:8000"
 

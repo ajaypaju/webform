@@ -169,7 +169,8 @@ return [
     |
     */
 
-    'secure' => env('SESSION_SECURE_COOKIE'),
+    // Secure everywhere except local dev over plain http.
+    'secure' => env('SESSION_SECURE_COOKIE', env('APP_ENV') !== 'local'),
 
     /*
     |--------------------------------------------------------------------------

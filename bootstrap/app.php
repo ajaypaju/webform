@@ -4,6 +4,7 @@ use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use App\Http\Middleware\AuthenticateApiKey;
+use App\Http\Middleware\DashboardTenant;
 use App\Http\Middleware\PublicHeaders;
 use App\Http\ValidationFailed;
 use App\Ingest\BrokerUnavailable;
@@ -30,7 +31,10 @@ return Application::configure(basePath: dirname(__DIR__))
             }
 
             match ($role) {
-                'api' => Route::middleware('api')->group(__DIR__.'/../routes/api.php'),
+                'api' => [
+                    Route::middleware('api')->group(__DIR__.'/../routes/api.php'),
+                    Route::middleware('web')->group(__DIR__.'/../routes/dashboard.php'),
+                ],
                 'ingest' => Route::middleware('api')->group(__DIR__.'/../routes/public.php'),
                 'consumer' => null,
                 default => throw new RuntimeException('APP_ROLE must be "api", "ingest" or "consumer".'),
@@ -38,7 +42,7 @@ return Application::configure(basePath: dirname(__DIR__))
         },
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        $middleware->alias(['api-key' => AuthenticateApiKey::class]);
+        $middleware->alias(['api-key' => AuthenticateApiKey::class, 'dashboard' => DashboardTenant::class]);
 
         // I9: global for the public origin so 404s and errors carry the headers too; route middleware never runs
         // for an unmatched path.
@@ -52,8 +56,9 @@ return Application::configure(basePath: dirname(__DIR__))
             }
         }
 
-        // WHY: route-model binding must run inside the api-key transaction, after set_config, or RLS returns no rows.
+        // WHY: route-model binding must run inside the tenant transaction, after set_config, or RLS returns no rows.
         $middleware->prependToPriorityList(SubstituteBindings::class, AuthenticateApiKey::class);
+        $middleware->prependToPriorityList(SubstituteBindings::class, DashboardTenant::class);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(

@@ -8,7 +8,10 @@ use App\Ingest\RenderToken;
 use App\Ingest\SubmissionProducer;
 use App\Ingest\VersionStore;
 use App\Kafka\Producer;
+use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\RateLimiter as LimiterFacade;
 use Illuminate\Support\ServiceProvider;
 use RuntimeException;
 
@@ -42,6 +45,9 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $role = config('app.role');
+
+        // I13-adjacent: the login form takes an API key; brute force is bounded per IP.
+        LimiterFacade::for('login', fn (Request $request) => Limit::perMinute(5)->by($request->ip()));
 
         if ($role === 'ingest') {
             // WHY: only the HTTP process is guarded here; tests boot with APP_ROLE=ingest but connect as the owner.
