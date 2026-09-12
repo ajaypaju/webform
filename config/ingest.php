@@ -15,14 +15,15 @@ return [
     // I3: a superseded version keeps accepting submissions for this long after the next one was published.
     'version_grace_seconds' => 86400,
 
-    // I13: token buckets, [burst capacity, sustained refill per second]. Assumptions, generous on purpose: the goal
-    // is to blunt abuse, not to ration legitimate traffic. Per IP+form: one visitor never needs 30 submits in a burst
-    // or more than 1/s sustained. Per form: a viral form at 200/s sustained is well inside the broker's budget
-    // (ARCHITECTURE §2). Per tenant: 2.5x the per-form limit.
+    // I13: token buckets, [burst capacity, sustained refill per second]. Per IP+form is tight: one visitor never
+    // legitimately bursts. Per form and per tenant are abuse ceilings, not traffic shapers: the brief's core scenario
+    // is a legitimate burst from a high-traffic embed, and the topic is what absorbs it (ARCHITECTURE §2). They sit
+    // above anything a single form has been measured to need and below what one broker node was measured to take.
+    // Per tenant is 2.5x per form. All assumptions.
     'rate_limits' => [
         'ip_form' => ['capacity' => 30, 'per_second' => 1],
-        'form' => ['capacity' => 2000, 'per_second' => 200],
-        'tenant' => ['capacity' => 5000, 'per_second' => 500],
+        'form' => ['capacity' => 5000, 'per_second' => 2000],
+        'tenant' => ['capacity' => 12500, 'per_second' => 5000],
     ],
 
     // Circuit breaker for the broker: after `failures` consecutive delivery failures fail fast for `cooldown`

@@ -23,8 +23,9 @@ What the report means:
 
 - **sent / acked / refused** — unique ids; refused = sent − acked, split by final status.
 - **429** — a rate limit refused it (per IP+form, per form, per tenant — `config/ingest.php`). Counted per response, so one
-  request retried three times counts three. With the default spike the per-form bucket (2000 burst, 200/s sustained) is
-  *supposed* to refuse most of it; that is the product working, not a failure.
+  request retried three times counts three. The per-form bucket (`config/ingest.php`, 5000 burst / 2000/s sustained;
+  it was 2000 / 200 when the numbers in ARCHITECTURE §2 were taken) is an abuse ceiling — above it, 429s are the
+  product working, not a failure.
 - **503** — the broker didn't confirm within the timeout (or the circuit breaker was open). Nothing was acked.
 - **ack latency** — first attempt to 202, retries included, so it is what a user waits.
 - **spike window** — target vs *dispatched* and acked per second, averaged over the plateau. Per-second counts are
