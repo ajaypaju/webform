@@ -38,11 +38,11 @@ form page: http://localhost:8080/f/01a09629-3b28-70f6-b820-79ec7187fa0a
 version:   http://localhost:8080/v1/forms/01a09629-3b28-70f6-b820-79ec7187fa0a
 ```
 
-`make test` — the Pest suite (25 feature files against real PostgreSQL under its four roles, Redis and Redpanda; 6 unit
+`make test` — the Pest suite (26 feature files against real PostgreSQL under its four roles, Redis and Redpanda; 6 unit
 files), then the JS suite (`node --test`, no npm dependencies).
 ```
-  Tests:    420 passed (1480 assertions)
-  Duration: 21.47s
+  Tests:    428 passed (1585 assertions)
+  Duration: 21.01s
 # tests 13
 # pass 13
 ```
@@ -91,13 +91,13 @@ app/Ingest/           VersionStore (worker LRU → Redis → Postgres), RenderTo
 app/Consumer/         Envelope, BatchWriter (one transaction, dedupe), Consumer (offsets after commit, DLQ, backoff)
 app/Submissions/      SubmissionQuery (keyset + filters), CsvExport (streamed, version-union columns, injection-safe)
 app/Http/             AuthenticateApiKey + DashboardTenant (session) -> the same tenant transaction; PublicHeaders (CSP);
-                      controllers: /v1 (FormController, SubmissionController), Public (ingest), Dashboard (login, builder)
+                      controllers: /v1 (FormController, SubmissionController), Public (ingest), Dashboard (login, builder, submissions)
 app/Tenancy/          TenantContext (scoped per request), TenantTransaction, ApiKey
 app/Database/         RuntimeRole: refuses to run as the wrong Postgres role
 app/Kafka/            Producer: produce + flush + per-message delivery report
 resources/js/form/    validate.js (port of the PHP validator), render.js, patterns.js (Web Worker), submit.js, messages.js
 resources/js/dashboard/ builder.js: field editor, visibility editor, live preview through render.js; no framework
-resources/views/      form/ the public page; dashboard/ login, forms list, builder (Blade + JSON data block)
+resources/views/      form/ the public page; dashboard/ login, forms list, builder (Blade + JSON data block), submissions viewer (Blade only)
 routes/               api.php (/v1, stateless), dashboard.php (web group: session + CSRF), public.php (ingest)
 conformance/          fixtures run by BOTH the PHP and the JS suites (submissions, definitions, patterns, publish)
 database/migrations/  raw SQL: partitions, composite FKs, immutability trigger, roles, RLS policies
@@ -169,14 +169,22 @@ through the same code the API uses, and previews the form with the public page's
 minted on the server from the label and never change afterwards. The session model is in
 [ARCHITECTURE.md §5.3](ARCHITECTURE.md#53-tenant-isolation).
 
+`/dashboard/forms/{form}/submissions` is the submissions viewer: one column per field across every version (the
+same column list as the CSV export, so screen and file agree), a field the row's version never had shown as `n/a`
+against a blank for an unanswered one, keyset paging with linkable cursors and no total (counting a partitioned
+table per page view is the load the design avoids — it says "showing N of many"), filters for date range, version
+and field = value that follow you across pages and onto the Export CSV button, and a detail view that labels each
+answer with the version the submission was validated against — a row from a retired version keeps its own labels.
+Values are visitor input and are rendered by Blade only; these pages ship no JavaScript.
+
 ## Built vs designed
 
 Built: the whole path from API key to CSV export — durable ingest with a delivery-confirmed ack, the exactly-once
 consumer, four Postgres roles with row-level security, the server-rendered page with a strict CSP, a validator that
-exists twice and is proven identical by shared fixtures, the session dashboard with the form builder, and the
-load/chaos tooling that produced the numbers below.
+exists twice and is proven identical by shared fixtures, the session dashboard with the form builder and the
+submissions viewer, and the load/chaos tooling that produced the numbers below.
 Designed, not built: CDN, ClickHouse via CDC, object storage, multi-region, per-tenant sharding, webhooks, GDPR
-deletion, a submissions viewer in the dashboard, async S3 exports, browser automation. The full table and the known limits (including one
+deletion, async S3 exports, browser automation. The full table and the known limits (including one
 found by the query planner: the api role cannot use the GIN index under RLS) are in
 [ARCHITECTURE.md §11](ARCHITECTURE.md#11-built-vs-designed).
 
