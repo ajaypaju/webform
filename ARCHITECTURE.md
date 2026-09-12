@@ -91,8 +91,9 @@ sequenceDiagram
     participant K as consumer
     participant P as PostgreSQL
 
-    C->>I: GET /f/{form} (page + HMAC render token, embedded definition)
-    I-->>C: 200, CSP, nosniff
+    C->>I: GET /f/{form} (page + HMAC render token, definition as a JSON data block)
+    I->>I: VersionStore: worker LRU -> Redis -> PostgreSQL (I12)
+    I-->>C: 200, CSP, nosniff, no-store
     C->>C: client validation (same conformance rules), id = UUIDv7
     C->>I: POST /f/{form}/v/{version} {id, data, token}
     I->>I: version pinned? token age ok? visibility -> strip hidden -> strict checks (I3, I6, I7)
@@ -120,6 +121,8 @@ sequenceDiagram
 ```
 
 The ambiguous ack is the case that matters: the client cannot tell "not produced" from "produced, report lost". Both resolve the same way because the retry reuses the id and `submission_ids` is a global unique key.
+
+Reads before the submit: `GET /v1/forms/{form}/versions/{version}` is `Cache-Control: public, max-age=31536000, immutable` (versions never change), `GET /v1/forms/{form}` is `max-age=30, stale-while-revalidate=60`, and `GET /f/{form}` is `no-store` because it embeds a per-render token. Designed: a CDN-cacheable page shell plus a tiny token endpoint, so the HTML itself becomes cacheable and only the token round-trips to `ingest`.
 
 ## 5. Requirements
 
@@ -152,8 +155,8 @@ Evidence: [tests/Feature/Schema/ApiRoleTest.php](tests/Feature/Schema/ApiRoleTes
 
 ### 5.4 Correctness under failure
 
-Mechanism (I12): every dependency has a defined degraded mode (section 9). Ingest may degrade to "accept and buffer", never to "accept and drop": Redis down → in-process limiter; PostgreSQL down → ingest keeps accepting for versions cached in worker memory; consumer down → the topic absorbs the backlog.
-Evidence: broker-down → 503 within the timeout — [tests/Feature/Kafka/ProducerTest.php](tests/Feature/Kafka/ProducerTest.php); the rest: pending (`loadtest/chaos.sh`).
+Mechanism (I12): every dependency has a defined degraded mode (section 9). Ingest may degrade to "accept and buffer", never to "accept and drop": Redis down → in-process limiter (planned); PostgreSQL down → ingest keeps serving from its version store; consumer down → the topic absorbs the backlog. The version store ([app/Ingest/VersionStore.php](app/Ingest/VersionStore.php)) reads versions through a bounded per-worker LRU (workers are recycled by `--max-requests`, so memory alone is not enough), then Redis (no expiry; versions are immutable), then PostgreSQL, filling Redis on the way back. Form state (`status`, `current_version_id`, the versions list I3 needs) is cached 10 s in the worker and 60 s in Redis, and served stale from the worker when PostgreSQL errors. Publish writes both keys after its commit, so a fresh version is servable at once and the store is already warm if the database goes away before anyone reads it; a Redis failure there is logged, not fatal. Only a cold key with both PostgreSQL and Redis unreachable yields 503 + `Retry-After`.
+Evidence: broker-down → 503 within the timeout — [tests/Feature/Kafka/ProducerTest.php](tests/Feature/Kafka/ProducerTest.php); page and version endpoints keep serving after PostgreSQL becomes unreachable, cold key with both down → 503, stale form state from worker memory, publish writes Redis and survives Redis being down — [tests/Feature/Ingest/VersionEndpointsTest.php](tests/Feature/Ingest/VersionEndpointsTest.php), [PageTest.php](tests/Feature/Ingest/PageTest.php), [tests/Feature/Api/FormsTest.php](tests/Feature/Api/FormsTest.php); consumer and rate limiter: pending.
 
 ### 5.5 Version integrity
 
@@ -163,8 +166,8 @@ Evidence: id regex — [tests/Unit/Conformance/DefinitionsTest.php](tests/Unit/C
 
 ### 5.6 XSS and injection
 
-Mechanism: definitions validated at save (`DefinitionRules`: id shape, types, options, rule values, regex portability); the page embeds the definition with `Js::from()` and renders with `{{ }}` only; `form.js` uses `textContent`/`setAttribute`, never `innerHTML`; strict CSP and `nosniff` (I9); the public origin carries no credential for the control plane. CSV export prefixes cells starting with `= + - @`, tab or CR with `'` (I10). Customer regex runs only through `SafePattern` (I8, section 7).
-Evidence: [tests/Unit/Conformance/DefinitionsTest.php](tests/Unit/Conformance/DefinitionsTest.php); ReDoS — [tests/Unit/Conformance/SubmissionsTest.php](tests/Unit/Conformance/SubmissionsTest.php) (`redos_*`, 500 ms bound); Blade/CSP/CSV: pending.
+Mechanism: definitions validated at save (`DefinitionRules`: id shape, types, options, rule values, regex portability); the page renders with `{{ }}` only and embeds the definition as a `<script type="application/json">` data block — never executed, so the CSP allows it, and `@json` hex-escapes `< > & ' "` so no value can close it; `render.js` uses `textContent`/`setAttribute`, never `innerHTML`, and never builds markup from strings; every public response carries `default-src 'none'; script-src 'self'; style-src 'self'; …; base-uri 'none'; frame-ancestors *` (embeddable by design, so no `X-Frame-Options`), `nosniff` and `Referrer-Policy: no-referrer`, and JS/CSS are same-origin Vite builds with nothing inline (I9); the public origin carries no credential for the control plane. CSV export prefixes cells starting with `= + - @`, tab or CR with `'` (I10). Customer regex runs only through `SafePattern` (I8, section 7).
+Evidence: [tests/Unit/Conformance/DefinitionsTest.php](tests/Unit/Conformance/DefinitionsTest.php); ReDoS — [tests/Unit/Conformance/SubmissionsTest.php](tests/Unit/Conformance/SubmissionsTest.php) (`redos_*`, 500 ms bound); hostile label and help text rendered inert, exact headers on every public response including 404s — [tests/Feature/Ingest/PageTest.php](tests/Feature/Ingest/PageTest.php); CSV: pending.
 
 ### 5.7 Dynamic-schema storage
 
@@ -204,13 +207,13 @@ Built as raw SQL in three migrations (`database/migrations/2026_09_11_*`). UUIDs
 
 ## 7. Validation design
 
-A definition is validated twice: `form.js` in the browser for feedback, `App\Forms\SubmissionValidator` on ingest as the authority. Both run against `conformance/`: each case states definition, input, expected error codes per field, and the exact object to store. Codes, not messages, so the two implementations are compared mechanically. PHP passes every case; JS is pending, and its harness (`tests/js/`) already runs the cross-engine regex check.
+A definition is validated twice: `resources/js/form/validate.js` in the browser for feedback, `App\Forms\SubmissionValidator` on ingest as the authority. Both run against `conformance/`: each case states definition, input, expected error codes per field, and the exact object to store. Codes, not messages, so the two implementations are compared mechanically. Both pass every case: `tests/js/validate.test.mjs` runs all submission cases through `validate.js` and asserts `valid`, `errors` and `output` exactly — that is the parity proof.
 
 **Why not Laravel's Validator.** It is loosely typed by design: `integer` accepts `"42"`, `date` uses `strtotime`, `email` is RFC-ish, `.`/`*` in a rule key means nesting — each a place where browser and server would disagree. The validator is pure PHP: `Normalizer` (JS `trim` set, code-point lengths, safe-integer float folding), `Visibility` (backward-only conditions, hidden values dropped before rules), `FieldChecks` (strict JSON types, one method per type), `SafePattern`, and `DefinitionRules` at save time.
 
 **Regex safety.** PHP has no RE2, so backtracking is contained, not avoided: `SafePattern` wraps the pattern in a control-character delimiter (no escaping, meaning preserved), adds `Du`, lowers `pcre.backtrack_limit`/`pcre.recursion_limit` around the call (restored in `finally`), caps pattern and subject length, and maps `preg_match === false` to the `pattern` code, never an exception. `DefinitionRules` admits only the subset PCRE and JS (`u`) read identically: no backreferences, lookaround, atomic/possessive constructs, inline flags, PCRE-only escapes, POSIX classes, octal or lenient `{ } ]`; `\p{..}` limited to short General_Category names. `tests/js/patterns.test.mjs` compiles every accepted pattern with `new RegExp(p, 'u')`.
 
-**Known semantic gaps** (`conformance/README.md`, documented, not fixed): JS `\s` includes Unicode spaces, PCRE without UCP is ASCII-only; `.` excludes `\r`, U+2028, U+2029 in JS but not PCRE. The server is authoritative, so the effect is client/server disagreement on exotic whitespace, never bad stored data.
+**Known semantic gaps** (`conformance/README.md`, documented, not fixed): JS `\s` includes Unicode spaces, PCRE without UCP is ASCII-only; `.` excludes `\r`, U+2028, U+2029 in JS but not PCRE; and JS has no backtrack limit — a catastrophic pattern PHP cuts off with `pattern` gives the same answer in the browser but can take seconds (V8's linear fallback engine cannot be used because it does not support the `u` flag). The server is authoritative, so the effect is client/server disagreement on exotic input or a slow tab on a tenant's own pathological pattern, never bad stored data.
 
 ## 8. Technology choices
 
@@ -230,8 +233,8 @@ A definition is validated twice: `form.js` in the browser for feedback, `App\For
 | Failure | System behaviour | User-visible effect | Recovery |
 |---|---|---|---|
 | Redpanda down or slow | No clean report within `message.timeout.ms` → 503 + `Retry-After`; nothing acked | Retry prompt; `form.js` retries with the same id (planned) | Broker returns; duplicates collapse in `submission_ids` |
-| PostgreSQL down | Ingest keeps accepting for versions cached in worker memory (planned); consumer stops committing, topic absorbs backlog; `api` 503. A cold `ingest` instance still starts (role check deferred to first connection) but cannot resolve uncached versions | Warm forms keep working; dashboard down; forms not yet cached on a new instance fail until the DB returns | Consumer drains; nothing was acked without a broker fsync. Designed fix: publish also writes the immutable version to a store independent of PostgreSQL (Redis in this slice; object storage behind the CDN in production) and ingest reads versions through it |
-| Redis down | Limiter fails open to in-process (planned) | None; spam limits weaken to per-instance | Shared counters resume |
+| PostgreSQL down | Ingest serves pages and definitions from the version store (worker LRU, then Redis; publish pre-warms both); form state is served stale; consumer stops committing, topic absorbs backlog; `api` 503. A cold `ingest` instance still starts (role check deferred to first connection) and serves anything Redis holds; only a key in neither cache returns 503 + `Retry-After` | Published forms keep working; dashboard down; a form never read since its publish *and* evicted from Redis is unavailable until the DB returns | Consumer drains; nothing was acked without a broker fsync. In production the version keys move to object storage behind the CDN, so Redis is not the only Postgres-independent copy |
+| Redis down | Limiter fails open to in-process (planned); version store falls through to PostgreSQL and logs the miss; publish still succeeds | None; spam limits weaken to per-instance; slightly more DB reads on ingest | Shared counters resume; read-through refills the store |
 | Consumer down | Topic retains; lag grows | Submissions appear late | Restart from last committed offset; replay is idempotent |
 | One ingest instance down | Removed from the balancer; in-flight requests without a report are unacked | A few network errors; clients retry with the same id | Autoscaling replaces it (designed) |
 | CDN down (designed) | Page and definition requests fall through to `ingest` | Slower loads | `immutable` responses refill |
@@ -258,10 +261,12 @@ A definition is validated twice: `form.js` in the browser for feedback, `App\For
 | Cross-engine regex compile check | Built | `tests/js/` |
 | Schema, monthly partitions + DEFAULT, immutability trigger, composite version FK | Built | `database/migrations/`, `tests/Feature/Schema/` |
 | Four least-privilege roles, RLS policies, `resolve_api_key`, runtime role check, `migrate` service | Built | `database/migrations/…000003…`, `app/Database/RuntimeRole.php`, `docker/postgres/init.sh`, `compose.yaml` |
-| Ingest endpoints, definition JSON with `immutable` caching, render token, pinning window (I3), spam (I13) | Designed | section 4 |
+| Public definition JSON (`immutable`), current-version pointer, version store (I12), form page with CSP and JSON data block (I9), render token issue/verify (I13) | Built | `app/Ingest/`, `app/Http/Controllers/Public/`, `resources/views/form/`, `tests/Feature/Ingest/` |
+| Submission endpoint, token verification and minimum fill time (I13), pinning window (I3) | Designed | section 4 |
 | Consumer: transactional dedupe, offset commit (I2) | Designed | section 4 |
 | Control-plane API: API keys (`tenants:create`), scoped tenant binding + request transaction (I11), forms CRUD, drafts with advisory validation and size caps, publish with `PublishCompat` (I5), versions | Built | `app/Http/`, `app/Tenancy/`, `app/Forms/PublishCompat.php`, `conformance/publish/`, `tests/Feature/Api/` |
-| Form page, `form.js`, CSP (I9); JS conformance run | Designed | section 7 |
+| `validate.js` (pure port) with the full conformance parity run; `render.js` (visibility, errors) | Built | `resources/js/form/`, `tests/js/validate.test.mjs` |
+| Client-side submit with retry on 503, same id (I2) | Designed | section 4 |
 | CSV export, streaming (I10, I15) | Designed | CLAUDE.md |
 | Load generator, reconciliation, chaos script | Planned | `loadtest/` |
 | CDN, archival, ClickHouse via CDC | Designed | sections 3, 10 |

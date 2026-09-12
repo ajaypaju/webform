@@ -56,10 +56,15 @@ app/Forms/PublishCompat.php        I5: a field id keeps its type across every pu
 app/Http/Middleware/AuthenticateApiKey.php  Bearer key -> resolve_api_key() -> scoped TenantContext, request transaction + set_config
 app/Http/Controllers/FormController.php     /v1/forms: create, list (keyset), show, draft, publish, versions
 app/Tenancy/                       TenantContext (scoped, I11), ApiKey (wf_ + 32 bytes base62; sha256 stored)
+app/Ingest/VersionStore.php        I12: worker LRU -> Redis -> Postgres for versions (immutable) and form state (stale-ok)
+app/Ingest/RenderToken.php         I13: HMAC(form|version|issued_at) with RENDER_TOKEN_KEY
+app/Http/Controllers/Public/       ingest: definition JSON (immutable), current-version pointer, form page
+resources/views/form/page.blade.php  server-rendered fields + JSON data block + render token; Cache-Control: no-store
+resources/js/form/validate.js      pure port of the PHP validator; tests/js runs every conformance case through it
+resources/js/form/render.js        live visibility, error display, typed value collection (textContent/setAttribute only)
 app/Forms/SafePattern.php          customer regex evaluation (I8)
 app/Ingest/SubmissionProducer.php  produce + flush + delivery check (I1)
 app/Console/Commands/ConsumeSubmissions.php
-resources/js/form.js               client renderer logic; compiles patterns with the 'u' flag
 conformance/*.json                 {definition, input, expectedErrors} fixtures, run by BOTH
                                    the Pest suite and a JS test, so client and server can't drift
 loadtest/                          burst.mjs, reconcile.mjs, chaos.sh
@@ -111,7 +116,7 @@ HTTP caching: `GET /v1/forms/{form}/versions/{version}` (definition JSON) -> `Ca
 - **I6 Conditional logic.** A condition may only reference fields earlier in the form (no cycles by construction). Visibility is evaluated first; hidden fields are stripped from input and get no rules.
 - **I7 Strict input.** Unknown field ids -> 422. Only validated, visible fields are stored (never `$request->all()`). Body size limit enforced.
 - **I8 ReDoS.** PCRE backtracks. `SafePattern` lowers `pcre.backtrack_limit` around the call, treats `preg_match` returning `false` as a validation failure (not a 500), caps pattern and input length. Publish rejects patterns with backreferences or lookaround.
-- **I9 XSS.** Blade uses `{{ }}` only, never `{!! !!}`. The definition is embedded with `Js::from()`. JS uses `textContent` / `setAttribute` only, never `innerHTML`. Form page has a strict CSP and `X-Content-Type-Options: nosniff`. Labels and help text are plain text.
+- **I9 XSS.** Blade uses `{{ }}` only, never `{!! !!}`. The definition is embedded as `<script type="application/json" id="form-definition">@json(...)</script>`: a data block is never executed, so the CSP allows it, and `@json` hex-escapes `< > & ' "` so nothing can close it (not `Js::from()`, which needs an inline script the CSP forbids). JS uses `textContent` / `setAttribute` only, never `innerHTML`. Form page CSP: `default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src 'self'; form-action 'self'; base-uri 'none'; frame-ancestors *` (embeddable by design, so no `X-Frame-Options`), plus `X-Content-Type-Options: nosniff` and `Referrer-Policy: no-referrer`; JS/CSS are same-origin Vite builds, nothing inline. Labels and help text are plain text.
 - **I10 CSV injection.** Export prefixes cells beginning with `= + - @` tab or CR with `'`.
 - **I11 Tenant isolation.** Tenant resolved from API key (via `resolve_api_key`) in middleware and bound with `app()->scoped()` (Octane resets scoped bindings per request; a plain singleton would leak tenant context to the next request). Every query filters by tenant_id (global scope). Also RLS (ENABLED, role-specific policies, never BYPASSRLS): each process connects as its own least-privilege role (`webform_api`, `webform_ingest`, `webform_writer`); `webform_owner` runs migrations/tests only. RLS is not FORCED: FORCE binds only the table owner, and the owner would then need a `USING (true)` policy that restricts nothing — so the owner is kept out of the runtime by credentials, and `App\Database\RuntimeRole` refuses any process whose connection is the wrong role, superuser, BYPASSRLS, or owns a table (api and consumer at boot; ingest on its first connection, so it can start while Postgres is down). Tenant set per transaction with `select set_config('app.tenant_id', ?, true)`: `AuthenticateApiKey` wraps the whole request in one transaction and sets it first, so any query outside that transaction sees zero rows. Streamed responses (CSV export) run after the middleware's transaction has ended, so they must open their own transaction and call `set_config` again. Never session-level `SET`: Octane reuses connections. Cross-tenant access -> 404, not 403.
 - **I12 Degraded dependencies.** Redis down -> rate limiter fails open to an in-process limiter (catch, don't 500). Postgres down -> ingest keeps accepting for forms whose version is cached in worker memory. Consumer down -> submissions accumulate in the broker.
@@ -127,6 +132,6 @@ docker compose exec api php artisan test
 cd loadtest && node burst.mjs          burst + acked-id capture
 cd loadtest && node reconcile.mjs      reconciliation report
 ./loadtest/chaos.sh                    burst while stopping consumer/postgres/broker, then reconcile
-./scripts/demo.sh                      seed + publish a demo form
+./scripts/demo.sh                      tenant + demo form (every type, visibility chain), published; prints page URL and key
 make tenant name="Acme"                tenant + API key, printed once (runs tenants:create as the owner role)
 ```

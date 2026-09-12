@@ -28,6 +28,7 @@
         <env name="DB_CONNECTION" value="pgsql"/>
         <env name="DB_DATABASE" value="webform_test"/>
         <env name="APP_ROLE" value="api"/>
+        <env name="RENDER_TOKEN_KEY" value="test-only-render-token-key"/>
         <env name="DB_URL" value=""/>
         <env name="MAIL_MAILER" value="array"/>
         <env name="QUEUE_CONNECTION" value="sync"/>

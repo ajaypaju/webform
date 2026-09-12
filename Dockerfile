@@ -1,3 +1,11 @@
+# Assets: the public form page's JS/CSS, served same-origin (I9). No node in the runtime image.
+FROM node:22-alpine AS assets
+WORKDIR /app
+COPY package.json package-lock.json vite.config.js ./
+RUN npm ci --no-audit --no-fund
+COPY resources ./resources
+RUN npm run build
+
 FROM dunglas/frankenphp:1-php8.4
 
 # WHY: pdo_pgsql for Postgres, redis for the cache-backed RateLimiter, pcntl for the consumer's signal handling,
@@ -13,6 +21,7 @@ COPY composer.json composer.lock ./
 RUN composer install --no-interaction --no-progress --prefer-dist --no-scripts --no-autoloader
 
 COPY . .
+COPY --from=assets /app/public/build ./public/build
 
 RUN composer dump-autoload --optimize --no-interaction \
     && chmod -R a+rwX storage bootstrap/cache

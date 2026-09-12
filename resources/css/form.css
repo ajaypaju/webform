@@ -1,0 +1,11 @@
+:root { font-family: system-ui, sans-serif; line-height: 1.4; color: #1a1a1a; background: #fafafa; }
+main { max-width: 40rem; margin: 2rem auto; padding: 0 1rem; }
+fieldset { border: 0; padding: 0; margin: 0 0 1.25rem; }
+label, legend { display: block; font-weight: 600; margin-bottom: .25rem; }
+input[type="text"], input[type="email"], input[type="number"], input[type="date"], select { width: 100%; padding: .5rem; border: 1px solid #999; border-radius: 4px; font: inherit; }
+.help { margin: .25rem 0 0; color: #555; font-size: .9rem; }
+.error { margin: .25rem 0 0; color: #b00020; font-size: .9rem; min-height: 1.2em; }
+.error:empty { display: none; }
+.required::after { content: " *"; color: #b00020; }
+button { padding: .6rem 1.2rem; font: inherit; border: 0; border-radius: 4px; background: #1a1a1a; color: #fff; }
+[hidden] { display: none !important; }
