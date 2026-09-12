@@ -56,6 +56,9 @@ app/Forms/SubmissionValidator.php  visibility -> strip hidden -> strict type/rul
 app/Forms/PublishCompat.php        I5: a field id keeps its type across every published version
 app/Http/Middleware/AuthenticateApiKey.php  Bearer key -> resolve_api_key() -> scoped TenantContext, request transaction + set_config
 app/Http/Controllers/FormController.php     /v1/forms: create, list (keyset), show, draft, publish, versions
+app/Http/Controllers/SubmissionController.php  /v1/forms/{form}/submissions: keyset list + filters; export.csv streams (I15)
+app/Submissions/SubmissionQuery.php  filters (from/to, version_id, field/value via jsonb @>), keyset on (received_at, id), opaque cursor
+app/Submissions/CsvExport.php      I15 chunks of 1000 in its own set_config transaction; columns = union of field ids over all versions (I5); I10 escaping
 app/Tenancy/                       TenantContext (scoped, I11), ApiKey (wf_ + 32 bytes base62; sha256 stored)
 app/Ingest/VersionStore.php        I12: worker LRU -> Redis -> Postgres for versions (immutable) and form state (stale-ok)
 app/Ingest/RenderToken.php         I13: HMAC(form|version|issued_at) with RENDER_TOKEN_KEY

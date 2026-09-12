@@ -205,8 +205,8 @@ Evidence: [tests/Unit/Conformance/DefinitionsTest.php](tests/Unit/Conformance/De
 
 ### 5.7 Dynamic-schema storage
 
-Mechanism: one `submissions` table for all tenants and forms, answers in JSONB `data` keyed by stable field id, `form_version_id` pointing at the definition that gives the keys meaning (section 6).
-Evidence: partitions and DEFAULT fallback — [tests/Feature/Schema/SubmissionsTableTest.php](tests/Feature/Schema/SubmissionsTableTest.php); the stored shape is fixed by `ValidationResult::$data` — [tests/Unit/Conformance/SubmissionsTest.php](tests/Unit/Conformance/SubmissionsTest.php).
+Mechanism: one `submissions` table for all tenants and forms, answers in JSONB `data` keyed by stable field id, `form_version_id` pointing at the definition that gives the keys meaning (section 6). Reading it back: `GET /v1/forms/{form}/submissions` is keyset-paginated on `(received_at DESC, id DESC)` — the index order — with `from`/`to`, `version_id` and an exact `field`/`value` match as `data @> {...}`; `export.csv` streams the same query in keyset chunks of 1,000 (I15) inside its own transaction with the tenant set (the middleware's ended before the stream ran, I11). Export columns are the union of field ids over every version, headed by each id's most recent label, so a row from v1 still exports correctly after v2 renamed, deleted and added fields — that is what I5 buys. Cells starting with `= + - @`, tab or CR get a leading apostrophe (I10); quoting is RFC 4180.
+Evidence: partitions and DEFAULT fallback — [tests/Feature/Schema/SubmissionsTableTest.php](tests/Feature/Schema/SubmissionsTableTest.php); the stored shape is fixed by `ValidationResult::$data` — [tests/Unit/Conformance/SubmissionsTest.php](tests/Unit/Conformance/SubmissionsTest.php); keyset paging without repeat or skip across same-microsecond ties, filters, tenant isolation — [tests/Feature/Api/SubmissionsListTest.php](tests/Feature/Api/SubmissionsListTest.php); export across a rename/delete/add, formula and quote escaping, 20,000 rows in 20 chunked selects with a bounded peak — [tests/Feature/Api/SubmissionsExportTest.php](tests/Feature/Api/SubmissionsExportTest.php). On the running stack the export of a 171,827-row form (26.8 MB) started streaming after 6 ms and finished in 1.0 s (`curl -w`, §2 hardware).
 
 ## 6. Data model
 
@@ -233,11 +233,13 @@ Built as raw SQL in three migrations (`database/migrations/2026_09_11_*`). UUIDs
 |---|---|
 | `submissions PK (id, received_at)` | fetch one submission; partition-local uniqueness |
 | `submission_ids PK (id)` | consumer `INSERT ... ON CONFLICT DO NOTHING RETURNING id` |
-| `submissions (tenant_id, form_id, received_at DESC, id DESC)` | dashboard list and CSV export, keyset paginated on `(received_at, id)`; `received_at` is server-set, so ordering by it is monotonic where the client-generated id is not |
-| `GIN (data jsonb_path_ops)` | exact-match filter `data @> '{"field": "value"}'` |
+| `submissions (tenant_id, form_id, received_at DESC, id DESC)` | dashboard list and CSV export, keyset paginated on `(received_at, id)`; `received_at` is server-set, so ordering by it is monotonic where the client-generated id is not. Also carries the filtered list: see the RLS note below |
+| `GIN (data jsonb_path_ops)` | exact-match filter `data @> '{"field": "value"}'` — usable only by a role that bypasses RLS (see below) |
 | `api_keys (key_hash)` | auth lookup |
 
-**The honest limit.** `jsonb_path_ops` serves containment only; "age > 30" over `data` is a partition scan narrowed by tenant and form. Fine for one form's recent partition, not an analytics product. Designed answer: CDC into ClickHouse with `data` exploded into typed columns per version; PostgreSQL stays the system of record.
+**The honest limit, part one: the GIN index is invisible to the api role.** `EXPLAIN ANALYZE` as `webform_api` (tenant set) for `... and data @> '{"name": "Unique Zebra"}' order by received_at desc, id desc limit 51` on a 171,827-row form: `Index Scan using submissions_2026_09_tenant_id_form_id_received_at_id_idx … Filter: (data @> …) Rows Removed by Filter: 171826`, 27 ms; the same predicate as the superuser: `Bitmap Index Scan on submissions_2026_09_data_idx`, 0.07 ms. No seq scan either way, but the api role never gets the GIN plan: PostgreSQL evaluates only `LEAKPROOF` operators before a row-security qual, and jsonb `@>` is not leakproof, so under RLS it can only run as a filter after the (leakproof) uuid equality on the btree. A filtered list therefore costs a btree walk over the form's rows — linear in form size, sub-100 ms at 172k rows here, and the same for any tenant because the btree narrows to (tenant, form) first. Options, none taken yet: a `SECURITY DEFINER` read function that applies the tenant predicate itself and is allowed the GIN plan; or accepting the walk and pushing analytics to the designed path below.
+
+**The honest limit, part two.** `jsonb_path_ops` serves containment only; "age > 30" over `data` is a partition scan narrowed by tenant and form. Fine for one form's recent partition, not an analytics product. Designed answer: CDC into ClickHouse with `data` exploded into typed columns per version; PostgreSQL stays the system of record.
 
 ## 7. Validation design
 
@@ -302,7 +304,7 @@ A definition is validated twice: `resources/js/form/validate.js` in the browser 
 | Control-plane API: API keys (`tenants:create`), scoped tenant binding + request transaction (I11), forms CRUD, drafts with advisory validation and size caps, publish with `PublishCompat` (I5), versions | Built | `app/Http/`, `app/Tenancy/`, `app/Forms/PublishCompat.php`, `conformance/publish/`, `tests/Feature/Api/` |
 | `validate.js` (pure port) with the full conformance parity run; `render.js` (visibility, errors) | Built | `resources/js/form/`, `tests/js/validate.test.mjs` |
 | Client-side submit: UUIDv7 reused on retry, backoff + jitter with Retry-After, pending submission in localStorage restored on load, 409/422 handling (I2) | Built | `resources/js/form/submit.js`, `render.js`, `tests/js/submit.test.mjs` |
-| CSV export, streaming (I10, I15) | Designed | CLAUDE.md |
+| Submission list (keyset, filters, jsonb containment) and streaming CSV export with version-union columns (I5, I10, I15) | Built | `app/Submissions/`, `app/Http/Controllers/SubmissionController.php`, `tests/Feature/Api/Submissions*Test.php` |
 | Load generator (arrival-rate schedule, same-id retries, JSONL), reconciliation (acked = stored, no phantoms, no duplicates), chaos script, drain measurement | Built | `loadtest/`, `compose.load.yaml`, `make load / chaos / drain` |
 | CDN, archival, ClickHouse via CDC | Designed | sections 3, 10 |
 | Degraded-dependency fallbacks (I12) | Designed | section 9 |
