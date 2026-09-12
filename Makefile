@@ -3,7 +3,7 @@ COMPOSE_DEV := docker compose -f compose.yaml -f compose.dev.yaml
 export UID  := $(shell id -u)
 export GID  := $(shell id -g)
 
-.PHONY: up dev key assets down reset logs sh test test-php test-js tenant reload
+.PHONY: up dev key assets down reset logs sh test test-php test-js tenant reload load burst reconcile chaos drain
 
 ## up: build, generate APP_KEY, start everything and wait until healthy (the reviewer command)
 up: .env
@@ -59,6 +59,31 @@ test-php:
 ## test-js: JS validator parity + cross-engine regex check (tests/js), no npm dependencies
 test-js:
 	docker run --rm -v "$(CURDIR):/app:ro" -w /app node:22-alpine node --test tests/js/*.test.mjs
+
+LOAD := docker compose -f compose.yaml -f compose.load.yaml
+
+## load: apply the load overlay (ingest trusts X-Forwarded-For from the compose network), burst, then reconcile.
+## Pass generator flags with ARGS="--spike 500 --spike-secs 30".
+load:
+	$(LOAD) up -d --wait
+	$(MAKE) burst reconcile
+
+burst:
+	@KEY=$$($(COMPOSE) run --rm --no-deps -T migrate php artisan tenants:create "loadtest $$(date +%s)" | sed 's/\x1b\[[0-9;]*m//g' | awk '/api_key:/ {print $$2}'); \
+	$(LOAD) --profile load run --build --rm -T -e LOAD_API_KEY=$$KEY load node burst.mjs --bypass-ip-limit $(ARGS)
+
+## reconcile: wait for the consumer to drain, then compare the latest run's acked ids with PostgreSQL
+reconcile:
+	$(LOAD) --profile load run --rm -T load node reconcile.mjs
+
+## drain: consumer drain rate D — N envelopes straight onto the topic with the consumer stopped, then time the drain
+drain:
+	./loadtest/drain.sh $(N)
+
+## chaos: a burst with the consumer, postgres and redpanda stopped in turn and a consumer kill -9, then reconcile
+chaos:
+	$(LOAD) up -d --wait
+	./loadtest/chaos.sh
 
 ## tenant: create a tenant and print its API key once, as the owner role (usage: make tenant name="Acme")
 tenant:

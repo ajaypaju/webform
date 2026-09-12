@@ -1,0 +1,28 @@
+# Load and chaos runs: `make load`, `make chaos`. Layered on compose.yaml.
+#
+# WHY: the generator is one host, so the per-IP bucket would refuse everything after 30 requests. With this
+# overlay ingest trusts X-Forwarded-For from the compose network only (fixed subnet, compose.yaml), and
+# burst.mjs --bypass-ip-limit sends a distinct synthetic client IP per request. Every other check runs unchanged.
+
+services:
+  ingest:
+    environment:
+      TRUSTED_PROXIES: 172.28.0.0/16
+
+  load:
+    build: loadtest
+    profiles: [load]
+    working_dir: /app/loadtest
+    environment:
+      INGEST_URL: http://ingest:8000
+      API_URL: http://api:8000
+      COMPOSE_PROJECT_NAME: ${COMPOSE_PROJECT_NAME:-webform}
+      KAFKA_CONSUMER_GROUP: ${KAFKA_CONSUMER_GROUP:-submissions-consumer}
+    volumes:
+      - ./loadtest:/app/loadtest
+      # WHY: reconcile needs rpk (lag) and psql (rows) from the running containers; docker exec is the only
+      # dependency-free way in. Root-equivalent on the host — this is a dev-laptop tool.
+      - /var/run/docker.sock:/var/run/docker.sock
+    depends_on:
+      ingest:
+        condition: service_healthy
