@@ -16,7 +16,7 @@ case. Errors are codes, never messages. Files are arrays of cases grouped by con
 - `option`: value must be one of the option values (case-sensitive, after trim); multiselect values must also be distinct.
 - `date`: `YYYY-MM-DD` and a real calendar date. `min`/`max` compare as dates.
 - `pattern`: search semantics, never implicitly anchored (`b` matches `abc`); authors write `^…$`. A match that hits the
-  backtrack limit fails with `pattern` (I8). Cases named `redos_*` must also complete in under 500 ms.
+  backtrack limit fails with `pattern` (I8). Cases named `redos_*` must also complete in under 500 ms in PHP.
 - Visibility first (I6): a hidden field is never required, gets no rules, and its value is dropped — so it also counts
   as "not provided" for any later `visible_if` that references it. `eq`/`neq`/`in` compare strictly.
 - Unknown field ids → `unknown_field` (I7); ids are case-sensitive. Codes: `required type min_length max_length pattern email min max integer option min_selected max_selected date unknown_field`.
@@ -36,6 +36,9 @@ lists `{pattern, accept}` cases; `tests/js/patterns.test.mjs` proves every accep
 on exotic input — never bad stored data)
 - `\s`: JS matches Unicode spaces (U+00A0, U+2028, U+3000 …); PCRE without UCP matches ASCII whitespace only.
 - `.`: neither matches `\n`; JS also excludes `\r`, U+2028 and U+2029, PCRE (with `u`) matches them.
+- No backtrack limit in JS: a pattern PHP cuts off with `pattern` gives the same answer in the browser but may take seconds
+  (`^(a+)+$` on 31 chars ≈ 20 s in V8). V8's linear fallback engine cannot be used because it does not support the `u` flag.
+- `{}` as a value reads as "not provided" on both sides: PHP cannot tell `{}` from `[]`, so JS mirrors it.
 
 ## publish/*.json — `PublishCompat::check(prior_versions, draft)` (I5)
 `{"name", "prior_versions": [definition…], "draft", "valid", "errors": [{"field", "code"}]}` — a field id that appeared in any

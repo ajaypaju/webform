@@ -3,7 +3,7 @@ COMPOSE_DEV := docker compose -f compose.yaml -f compose.dev.yaml
 export UID  := $(shell id -u)
 export GID  := $(shell id -g)
 
-.PHONY: up dev key down reset logs sh test test-php test-js tenant reload
+.PHONY: up dev key assets down reset logs sh test test-php test-js tenant reload
 
 ## up: build, generate APP_KEY, start everything and wait until healthy (the reviewer command)
 up: .env
@@ -12,7 +12,7 @@ up: .env
 	$(COMPOSE) up --build -d --wait
 
 ## dev: same as up, with the working tree bind-mounted into api/ingest
-dev: .env
+dev: .env assets
 	$(COMPOSE_DEV) build
 	$(MAKE) key
 	$(COMPOSE_DEV) up --build -d --wait
@@ -20,11 +20,19 @@ dev: .env
 .env:
 	cp .env.example .env
 
-## key: fill APP_KEY in .env if empty, via a one-off container running as the host user
+## key: fill APP_KEY and RENDER_TOKEN_KEY in .env if empty, via a one-off container running as the host user
 key: .env
 	@if grep -q '^APP_KEY=$$' .env; then \
 		docker run --rm --user "$(UID):$(GID)" -v "$(CURDIR)/.env:/app/.env" webform-app php artisan key:generate --force --ansi; \
 	fi
+	@if ! grep -q '^RENDER_TOKEN_KEY=.\+' .env; then \
+		sed -i.bak '/^RENDER_TOKEN_KEY=$$/d' .env && rm -f .env.bak; \
+		printf 'RENDER_TOKEN_KEY=%s\n' "$$(docker run --rm webform-app php -r 'echo base64_encode(random_bytes(32));')" >> .env; \
+	fi
+
+## assets: build the form page JS/CSS into public/build on the host (needed by `make dev`, whose bind mount hides the image's build)
+assets:
+	docker run --rm --user "$(UID):$(GID)" -v "$(CURDIR):/app" -w /app -e npm_config_cache=/tmp/npm node:22-alpine sh -c 'npm ci --no-audit --no-fund && npm run build'
 
 down:
 	$(COMPOSE) down
@@ -44,9 +52,10 @@ test: test-php test-js
 
 ## test-php: runs as the owner role (migrations, truncation); the role passwords come from the container's own env
 test-php:
-	$(COMPOSE) exec api sh -c 'APP_ENV=testing DB_DATABASE=webform_test CACHE_STORE=array DB_USERNAME=webform_owner DB_PASSWORD=$$DB_OWNER_PASSWORD php artisan test'
+	$(COMPOSE) exec api sh -c 'APP_ENV=testing DB_DATABASE=webform_test CACHE_STORE=array REDIS_DB=2 DB_USERNAME=webform_owner DB_PASSWORD=$$DB_OWNER_PASSWORD php artisan test'
 
-## test-js: cross-engine regex check (tests/js), no npm dependencies
+## test-js: JS validator parity + cross-engine regex check (tests/js), no npm dependencies. ~20s of it is the
+## redos_* case: JS has no backtrack limit and V8's linear fallback engine can't do u-mode (conformance/README.md).
 test-js:
 	docker run --rm -v "$(CURDIR):/app:ro" -w /app node:22-alpine node --test tests/js/*.test.mjs
 
