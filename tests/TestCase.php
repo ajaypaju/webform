@@ -7,6 +7,17 @@ use Illuminate\Support\Facades\DB;
 
 abstract class TestCase extends BaseTestCase
 {
+    // WHY: bootstrap/app.php picks the route file from APP_ROLE at boot; a suite that needs the other role
+    // subclasses this and overrides the constant (IngestTestCase).
+    protected const APP_ROLE = 'api';
+
+    public function createApplication()
+    {
+        $_SERVER['APP_ROLE'] = static::APP_ROLE;
+
+        return parent::createApplication();
+    }
+
     protected function setUp(): void
     {
         parent::setUp();

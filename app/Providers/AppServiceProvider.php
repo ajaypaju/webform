@@ -3,6 +3,8 @@
 namespace App\Providers;
 
 use App\Database\RuntimeRole;
+use App\Ingest\RenderToken;
+use App\Ingest\VersionStore;
 use App\Kafka\Producer;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\ServiceProvider;
@@ -21,6 +23,11 @@ class AppServiceProvider extends ServiceProvider
             config('kafka.brokers'),
             config('kafka.producer'),
         ));
+
+        // WHY: singleton for the same reason — its worker-memory caches are the point (I12).
+        $this->app->singleton(VersionStore::class);
+
+        $this->app->singleton(RenderToken::class, fn () => new RenderToken((string) config('ingest.render_token_key')));
     }
 
     /**
@@ -31,7 +38,10 @@ class AppServiceProvider extends ServiceProvider
         $role = config('app.role');
 
         if ($role === 'ingest') {
-            RuntimeRole::checkOnFirstConnection($this->app['events'], $this->app['db'], $role);
+            // WHY: only the HTTP process is guarded here; tests boot with APP_ROLE=ingest but connect as the owner.
+            if (! $this->app->runningInConsole()) {
+                RuntimeRole::checkOnFirstConnection($this->app['events'], $this->app['db'], $role);
+            }
 
             return;
         }

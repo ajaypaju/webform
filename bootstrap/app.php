@@ -4,7 +4,9 @@ use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use App\Http\Middleware\AuthenticateApiKey;
+use App\Http\Middleware\PublicHeaders;
 use App\Http\ValidationFailed;
+use App\Ingest\StoreUnavailable;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Middleware\SubstituteBindings;
 use Illuminate\Support\Facades\Route;
@@ -35,6 +37,12 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->alias(['api-key' => AuthenticateApiKey::class]);
 
+        // I9: global for the public origin so 404s and errors carry the headers too; route middleware never runs
+        // for an unmatched path.
+        if (env('APP_ROLE') === 'ingest') {
+            $middleware->append(PublicHeaders::class);
+        }
+
         // WHY: route-model binding must run inside the api-key transaction, after set_config, or RLS returns no rows.
         $middleware->prependToPriorityList(SubstituteBindings::class, AuthenticateApiKey::class);
     })
@@ -43,8 +51,11 @@ return Application::configure(basePath: dirname(__DIR__))
             fn (Request $request) => $request->is('v1/*') || $request->expectsJson(),
         );
 
+        // I12: the store had no reachable source for a cold key; the client should retry, not report a bug.
+        $exceptions->render(fn (StoreUnavailable $e) => response()->json(['error' => 'unavailable'], 503, ['Retry-After' => '5']));
+
         // 422s carry codes, never messages, on both the control plane and the public API.
-        $exceptions->render(fn (ValidationFailed $e) => response()->json(['errors' => $e->errors], 422));
+        $exceptions->render(fn (ValidationFailed $e) => response()->json(['errors' => $e->errors], $e->status));
         $exceptions->render(function (ValidationException $e) {
             $errors = [];
 

@@ -4,11 +4,11 @@ namespace App\Http;
 
 use RuntimeException;
 
-// Rendered as 422 {"errors": [{"code": ..., "field"?: ...}]} by bootstrap/app.php.
+// Rendered as {"errors": [{"code": ..., "field"?: ...}]} with $status (422 unless given) by bootstrap/app.php.
 final class ValidationFailed extends RuntimeException
 {
     /** @param  list<array{code: string, field?: string}>  $errors */
-    public function __construct(public readonly array $errors)
+    public function __construct(public readonly array $errors, public readonly int $status = 422)
     {
         parent::__construct('Validation failed: '.json_encode($errors));
     }

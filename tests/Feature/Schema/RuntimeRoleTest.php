@@ -37,6 +37,7 @@ it('lets ingest boot with PostgreSQL unreachable and fails only when it first co
     config(['app.role' => 'ingest', 'database.connections.pgsql_down' => [...config('database.connections.pgsql'), 'host' => '127.0.0.1', 'port' => 9]]);
 
     (new App\Providers\AppServiceProvider($this->app))->boot();
+    RuntimeRole::checkOnFirstConnection($this->app['events'], $this->app['db'], 'ingest');
 
     expect(fn () => DB::connection('pgsql_down')->select('select 1'))->toThrow(QueryException::class, 'Connection refused');
 });

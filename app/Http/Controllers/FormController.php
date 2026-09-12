@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Forms\DefinitionRules;
 use App\Forms\PublishCompat;
 use App\Http\ValidationFailed;
+use App\Ingest\VersionStore;
 use App\Models\Form;
 use App\Models\FormVersion;
 use App\Tenancy\TenantContext;
@@ -70,9 +71,9 @@ final class FormController extends Controller
         return response()->json($this->detail($form->load('currentVersion')) + ['definition_errors' => $rules->validate($definition)]);
     }
 
-    public function publish(Form $form, TenantContext $tenant, DefinitionRules $rules, PublishCompat $compat): JsonResponse
+    public function publish(Form $form, TenantContext $tenant, DefinitionRules $rules, PublishCompat $compat, VersionStore $store): JsonResponse
     {
-        return DB::transaction(function () use ($form, $tenant, $rules, $compat) {
+        return DB::transaction(function () use ($form, $tenant, $rules, $compat, $store) {
             // WHY: FOR UPDATE serializes concurrent publishes of one form, so version_no = max + 1 can't collide.
             $form = Form::whereKey($form->id)->lockForUpdate()->firstOrFail();
 
@@ -80,10 +81,10 @@ final class FormController extends Controller
                 throw ValidationFailed::codes($errors);
             }
 
-            $priors = $form->versions()->pluck('definition');
+            $priors = $form->versions()->get();
 
             // I5
-            if (($errors = $compat->check($priors->all(), $form->draft)) !== []) {
+            if (($errors = $compat->check($priors->pluck('definition')->all(), $form->draft)) !== []) {
                 throw new ValidationFailed($errors);
             }
 
@@ -93,6 +94,15 @@ final class FormController extends Controller
             ]);
 
             $form->update(['current_version_id' => $version->id, 'status' => 'published']);
+
+            // WHY: the api writes the ingest store (I12) so a fresh publish is servable at once, and so the store
+            // is already warm if PostgreSQL goes down before anyone reads it. Redis failure is logged, not fatal:
+            // ingest's read-through repairs it.
+            $summaries = $priors->push($version)->map($this->versionSummary(...))->all();
+            DB::afterCommit(fn () => $store->put(
+                $this->versionSummary($version) + ['form_id' => $form->id, 'tenant_id' => $tenant->tenantId, 'definition' => $version->definition],
+                ['status' => 'published', 'current_version_id' => $version->id, 'versions' => $summaries],
+            ));
 
             return response()->json(['version_id' => $version->id, 'version_no' => $version->version_no], 201);
         });
@@ -106,7 +116,7 @@ final class FormController extends Controller
     private function guardDraft(Request $request, array $definition): void
     {
         if (strlen($request->getContent()) > self::MAX_BODY_BYTES) {
-            abort(413, 'Request body exceeds 256 KB.');
+            throw new ValidationFailed([['code' => 'body_too_large']], 413);
         }
 
         $fields = $definition['fields'] ?? [];

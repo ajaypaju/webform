@@ -1,6 +1,9 @@
 <?php
 
+use App\Ingest\VersionStore;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Redis;
 use Illuminate\Support\Str;
 
 function field(string $id, string $type, array $extra = []): array
@@ -129,10 +132,26 @@ it('rejects oversized drafts without a 500', function () {
     $manyFields = definition(...array_map(fn ($i) => field("f{$i}", 'text'), range(1, 201)));
     $manyOptions = definition(field('s', 'select', ['options' => array_map(fn ($i) => ['value' => "o{$i}", 'label' => "O{$i}"], range(1, 101))]));
 
-    $this->withToken($this->key)->putJson("/v1/forms/{$form}/draft", ['definition' => $big])->assertStatus(413);
+    $this->withToken($this->key)->putJson("/v1/forms/{$form}/draft", ['definition' => $big])
+        ->assertStatus(413)->assertExactJson(['errors' => [['code' => 'body_too_large']]]);
     $this->withToken($this->key)->putJson("/v1/forms/{$form}/draft", ['definition' => $manyFields])
         ->assertStatus(422)->assertExactJson(['errors' => [['code' => 'too_many_fields', 'field' => 'definition']]]);
     $this->withToken($this->key)->putJson("/v1/forms/{$form}/draft", ['definition' => $manyOptions])
         ->assertStatus(422)->assertExactJson(['errors' => [['code' => 'too_many_options', 'field' => 's']]]);
-    $this->withToken($this->key)->postJson('/v1/forms', ['name' => 'x', 'definition' => $big])->assertStatus(413);
+    $this->withToken($this->key)->postJson('/v1/forms', ['name' => 'x', 'definition' => $big])
+        ->assertStatus(413)->assertExactJson(['errors' => [['code' => 'body_too_large']]]);
+});
+
+// I12
+it('writes the version and form state to Redis on publish, and still publishes when Redis is down', function () {
+    $form = createForm($this->key);
+    $v1 = publish($this->key, $form, definition(field('email', 'email')))->assertCreated()->json('version_id');
+
+    expect(json_decode(Redis::get(VersionStore::versionKey($form, $v1)), true))->toMatchArray(['id' => $v1, 'version_no' => 1, 'definition' => definition(field('email', 'email'))])
+        ->and(json_decode(Redis::get(VersionStore::formKey($form)), true))->toMatchArray(['status' => 'published', 'current_version_id' => $v1]);
+
+    redisDown();
+    Log::shouldReceive('warning')->atLeast()->once()->withArgs(fn ($message) => str_contains($message, 'redis write failed'));
+
+    publish($this->key, $form, definition(field('email', 'email'), field('age', 'number')))->assertCreated()->assertJson(['version_no' => 2]);
 });
