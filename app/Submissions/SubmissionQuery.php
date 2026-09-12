@@ -107,10 +107,34 @@ final class SubmissionQuery
             $query->whereRaw('(received_at, id) < (?, ?)', self::decodeCursor($cursor));
         }
 
-        $rows = $query->limit($limit + 1)->get(['id', 'received_at', 'form_version_id', 'data']);
-        $page = $rows->take($limit)->all();
+        $rows = self::fetch($query, $limit);
+        $page = array_slice($rows, 0, $limit);
 
-        return [$page, $rows->count() > $limit ? self::encodeCursor(end($page)) : null];
+        return [$page, count($rows) > $limit ? self::encodeCursor(end($page)) : null];
+    }
+
+    /**
+     * The page ending just before $cursor (exclusive), in list order: the "previous" link. Walks the same index
+     * backwards, so going forward and back lands on the same rows. Returns the rows and the cursor for the page
+     * before them, or null when these are the newest rows.
+     *
+     * @return array{0: list<object>, 1: ?string}
+     */
+    public function pageBefore(int $limit, string $cursor): array
+    {
+        $query = $this->builder()->reorder()->orderBy('received_at')->orderBy('id')
+            ->whereRaw('(received_at, id) > (?, ?)', self::decodeCursor($cursor));
+
+        $rows = self::fetch($query, $limit);
+        $page = array_reverse(array_slice($rows, 0, $limit));
+
+        return [$page, count($rows) > $limit ? self::encodeCursor($page[0]) : null];
+    }
+
+    /** @return list<object> up to $limit + 1 rows: the extra one only says whether another page exists. */
+    private static function fetch(Builder $query, int $limit): array
+    {
+        return $query->limit($limit + 1)->get(['id', 'received_at', 'form_version_id', 'data'])->all();
     }
 
     public static function encodeCursor(object $row): string
