@@ -60,6 +60,10 @@ return Application::configure(basePath: dirname(__DIR__))
             fn (Request $request) => $request->is('v1/*') || $request->expectsJson(),
         );
 
+        // WHY: these are answers (413/422/429/503), not faults. Reporting them wrote a stack trace per refused
+        // request under load; the breaker and store log their own state changes once.
+        $exceptions->dontReport([ValidationFailed::class, RateLimited::class, BrokerUnavailable::class, StoreUnavailable::class]);
+
         // I12: the store had no reachable source for a cold key; the client should retry, not report a bug.
         $exceptions->render(fn (StoreUnavailable $e) => response()->json(['error' => 'unavailable'], 503, ['Retry-After' => '5']));
 

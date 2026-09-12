@@ -58,6 +58,7 @@ final class SubmissionProducer
     private function failed(DeliveryFailed $e): void
     {
         $this->consecutiveFailures++;
+        Log::warning('submission producer: delivery failed', ['error' => $e->getMessage(), 'consecutive' => $this->consecutiveFailures]);
 
         // WHY: an idempotent producer that hit a fatal error refuses every further produce; only a new client recovers.
         if ($e->getCode() === RD_KAFKA_RESP_ERR__FATAL) {
