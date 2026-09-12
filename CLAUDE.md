@@ -18,6 +18,7 @@ Optimize for: the invariants below holding, clarity, small surface area. Not fea
 - Tests run against real PostgreSQL, never SQLite (SQLite has no JSONB, RLS, or partitions, so tests would pass for the wrong reason). Integration tests for I1, I2, I3, I11 hit real Postgres/Redpanda from docker compose; don't mock the component under test.
 - Tests that involve the consumer process use `DatabaseTruncation`, not `RefreshDatabase` (a wrapping transaction is invisible to other processes).
 - If a diff would exceed ~400 lines, stop and propose a split first.
+- Anything that keeps per-worker state (broker producer, circuit breaker, version LRU, fallback rate buckets) must be a singleton listed in `config/octane.php` `warm`. A singleton first resolved during a request lives in that request's sandbox container and is gone afterwards; tests can't catch this, only the running stack can.
 - Every task summary ends with:
   1. What changed (one line per file)
   2. Decisions made + alternative rejected (one line each)
@@ -58,11 +59,14 @@ app/Http/Controllers/FormController.php     /v1/forms: create, list (keyset), sh
 app/Tenancy/                       TenantContext (scoped, I11), ApiKey (wf_ + 32 bytes base62; sha256 stored)
 app/Ingest/VersionStore.php        I12: worker LRU -> Redis -> Postgres for versions (immutable) and form state (stale-ok)
 app/Ingest/RenderToken.php         I13: HMAC(form|version|issued_at) with RENDER_TOKEN_KEY
-app/Http/Controllers/Public/       ingest: definition JSON (immutable), current-version pointer, form page
+app/Ingest/RateLimiter.php         I13: Redis token buckets (Lua, atomic), in-worker fallback when Redis is down (I12)
+app/Ingest/SubmissionProducer.php  I1: envelope -> Sender (produce + flush + delivery report), circuit breaker, fatal recreate
+app/Http/Controllers/Public/       ingest: definition JSON (immutable), current-version pointer, form page, POST submissions
 resources/views/form/page.blade.php  server-rendered fields + JSON data block + render token; Cache-Control: no-store
 resources/js/form/validate.js      pure port of the PHP validator; tests/js runs every conformance case through it
 resources/js/form/render.js        live visibility, error display, typed value collection (textContent/setAttribute only)
 resources/js/form/patterns.js      pattern checks in a Web Worker (pattern-worker.js), 50 ms budget, skip on timeout (I8)
+resources/js/form/submit.js        UUIDv7, backoff + jitter, Retry-After; the pending submission lives in localStorage until acked (I2)
 app/Forms/SafePattern.php          customer regex evaluation (I8)
 app/Ingest/SubmissionProducer.php  produce + flush + delivery check (I1)
 app/Console/Commands/ConsumeSubmissions.php
@@ -109,7 +113,7 @@ HTTP caching: `GET /v1/forms/{form}/versions/{version}` (definition JSON) -> `Ca
 
 ## Invariants (each needs a test that fails if it's broken)
 
-- **I1 Ack after durability.** rdkafka `produce()` only queues in local memory. Ingest must `flush()` with a bounded timeout, confirm the delivery report has no error, and only then return 202. Producer config: `acks=all`, `enable.idempotence=true`, bounded `message.timeout.ms`. Flush/delivery failure -> 503 + Retry-After. No code path returns 202 otherwise.
+- **I1 Ack after durability.** rdkafka `produce()` only queues in local memory. Ingest must `flush()` with a bounded timeout, confirm the delivery report has no error, and only then return 202. Producer config: `acks=all`, `enable.idempotence=true`, bounded `message.timeout.ms`. Flush/delivery failure -> 503 + Retry-After. No code path returns 202 otherwise. A per-worker circuit breaker fails fast for a cooldown after N consecutive failures (a burst during an outage must not pin every worker on the flush timeout), and a fatal librdkafka error recreates the producer. `received_at` is set at acceptance, before produce, and travels in the envelope.
 - **I2 Idempotency.** Submission id is a client-generated UUIDv7, reused on retry. Consumer, in one transaction: insert ids into `submission_ids ON CONFLICT DO NOTHING RETURNING id`, insert `submissions` only for returned ids. `enable.auto.commit=false`; commit offsets only after the DB transaction commits.
 - **I3 Version pinning.** A submission carries `form_version_id` and is validated against that version, not the current one. Accept if it's current or was superseded < 24h ago; else 409 with the current version id. The version must belong to the form in the URL.
 - **I4 Immutability.** `form_versions` rows are never updated or deleted (DB trigger raises).
@@ -121,7 +125,7 @@ HTTP caching: `GET /v1/forms/{form}/versions/{version}` (definition JSON) -> `Ca
 - **I10 CSV injection.** Export prefixes cells beginning with `= + - @` tab or CR with `'`.
 - **I11 Tenant isolation.** Tenant resolved from API key (via `resolve_api_key`) in middleware and bound with `app()->scoped()` (Octane resets scoped bindings per request; a plain singleton would leak tenant context to the next request). Every query filters by tenant_id (global scope). Also RLS (ENABLED, role-specific policies, never BYPASSRLS): each process connects as its own least-privilege role (`webform_api`, `webform_ingest`, `webform_writer`); `webform_owner` runs migrations/tests only. RLS is not FORCED: FORCE binds only the table owner, and the owner would then need a `USING (true)` policy that restricts nothing — so the owner is kept out of the runtime by credentials, and `App\Database\RuntimeRole` refuses any process whose connection is the wrong role, superuser, BYPASSRLS, or owns a table (api and consumer at boot; ingest on its first connection, so it can start while Postgres is down). Tenant set per transaction with `select set_config('app.tenant_id', ?, true)`: `AuthenticateApiKey` wraps the whole request in one transaction and sets it first, so any query outside that transaction sees zero rows. Streamed responses (CSV export) run after the middleware's transaction has ended, so they must open their own transaction and call `set_config` again. Never session-level `SET`: Octane reuses connections. Cross-tenant access -> 404, not 403.
 - **I12 Degraded dependencies.** Redis down -> rate limiter fails open to an in-process limiter (catch, don't 500). Postgres down -> ingest keeps accepting for forms whose version is cached in worker memory. Consumer down -> submissions accumulate in the broker.
-- **I13 Spam.** Honeypot field. Minimum fill time via an HMAC-signed render token embedded in the page (client can't forge the timestamp). Rate limits per IP+form, per form, per tenant.
+- **I13 Spam.** Honeypot field. Minimum fill time via an HMAC-signed render token embedded in the page (client can't forge the timestamp); tokens expire after 24h. Rate limits per IP+form, per form, per tenant (Redis token buckets; per-worker fallback when Redis is down). Spam gets a decoy 202 with a fresh id and is never produced; the `submission dropped` info-level log line with the reason is the audit trail — a graded "no lost submissions" claim must never rest on a silent drop.
 - **I14 Partitioning.** Kafka message key = submission id, so one hot form spreads across partitions.
 - **I15 Memory-safe export.** Export streams with `response()->streamDownload()` over keyset chunks of 1000 on `(received_at, id)`. Never `->get()` or `->cursor()` on the full set (PDO pgsql buffers entire result sets client-side).
 

@@ -94,21 +94,26 @@ sequenceDiagram
     C->>I: GET /f/{form} (page + HMAC render token, definition as a JSON data block)
     I->>I: VersionStore: worker LRU -> Redis -> PostgreSQL (I12)
     I-->>C: 200, CSP, nosniff, no-store
-    C->>C: client validation (same conformance rules), id = UUIDv7
-    C->>I: POST /f/{form}/v/{version} {id, data, token}
-    I->>I: version pinned? token age ok? visibility -> strip hidden -> strict checks (I3, I6, I7)
+    C->>C: client validation (same conformance rules); id = UUIDv7, kept in localStorage until acked
+    C->>I: POST /v1/forms/{form}/submissions {submission_id, form_version_id, render_token, data, honeypot}
+    I->>I: 1 rate limits (Redis buckets, per-worker fallback) -> 429
+    I->>I: 2 honeypot / token HMAC, age 2s..24h -> decoy 202, logged, never produced (I13)
+    I->>I: 3 version belongs to form and is current or superseded < 24h -> 404 / 409 (I3)
+    I->>I: 4 visibility -> strip hidden -> strict checks against that version (I6, I7)
     alt validation fails
         I-->>C: 422 {field: [codes]}
     end
-    I->>R: produce(key=id, payload) — local queue only
+    I->>I: received_at = now (fixed here); envelope {v, ids, received_at, data, meta{ip_hash, ua, referer host}}
+    I->>R: produce(key=submission_id, envelope) — local queue only (I14)
     I->>R: flush(bounded timeout)
     R-->>I: delivery report, err = 0
     Note over R: durability begins here: record fsync'd by the leader with acks=all (RF=3 designed: on 2 of 3 replicas)
-    I-->>C: 202 {id}
+    I-->>C: 202 {submission_id, received_at}
+    C->>C: clear localStorage, show thanks
     alt broker slow or down
-        R--xI: no report within message.timeout.ms
+        R--xI: no report within message.timeout.ms (after N failures the breaker answers without trying)
         I-->>C: 503 Retry-After
-        C->>I: retry with the same id
+        C->>I: retry with the same id (backoff + jitter, Retry-After honoured, survives a reload)
         I->>R: produce, flush, report
         I-->>C: 202
         Note over R,P: if the first produce did land, the topic now holds the id twice
@@ -124,17 +129,21 @@ The ambiguous ack is the case that matters: the client cannot tell "not produced
 
 Reads before the submit: `GET /v1/forms/{form}/versions/{version}` is `Cache-Control: public, max-age=31536000, immutable` (versions never change), `GET /v1/forms/{form}` is `max-age=30, stale-while-revalidate=60`, and `GET /f/{form}` is `no-store` because it embeds a per-render token. Designed: a CDN-cacheable page shell plus a tiny token endpoint, so the HTML itself becomes cacheable and only the token round-trips to `ingest`.
 
+The order of checks is by cost: rate limits touch only Redis (or worker memory), the token check is a local HMAC, version resolution reads the form state the page load already cached, and only then does validation and the broker round-trip happen. The consumer is the next slice: today submissions are durable on the topic but not yet in PostgreSQL.
+
 ## 5. Requirements
 
 ### 5.1 Bursty load
 
-Mechanism: no database write on the request path; the only synchronous dependency is the broker ack. Octane keeps the framework booted, a per-worker `Producer` singleton keeps broker connections open, and the message key is the submission id so a hot form spreads across all 12 partitions (I14). Backpressure is explicit: no ack within `message.timeout.ms` means 503 + `Retry-After`, never a queued-in-memory 202.
-Evidence: [tests/Feature/Kafka/ProducerTest.php](tests/Feature/Kafka/ProducerTest.php); burst throughput and latency: TBD (load test), `loadtest/burst.mjs` planned.
+Mechanism: no database write on the request path; the only synchronous dependency is the broker ack. Octane keeps the framework booted, a per-worker `Producer` singleton keeps broker connections open, and the message key is the submission id so a hot form spreads across all 12 partitions (I14). Per-worker singletons are resolved at worker boot through Octane's `warm` list: a singleton first resolved inside a request belongs to that request's sandbox container and does not survive it — found on the running stack when the breaker failed to open, not by the test suite. Backpressure is explicit: no ack within `message.timeout.ms` means 503 + `Retry-After`, never a queued-in-memory 202.
+A per-worker circuit breaker ([app/Ingest/SubmissionProducer.php](app/Ingest/SubmissionProducer.php)) opens after N consecutive delivery failures and answers 503 without a broker round-trip for a cooldown, then lets one request probe — otherwise a burst during a broker outage pins every worker on `message.timeout.ms`. A fatal librdkafka error recreates the producer; an idempotent producer stays broken otherwise.
+Evidence: [tests/Feature/Kafka/ProducerTest.php](tests/Feature/Kafka/ProducerTest.php); breaker open/probe/close, re-open on a failed probe, fatal recreate, and the HTTP path returning 503 never 202 while the broker is down — [tests/Feature/Ingest/SubmissionProducerTest.php](tests/Feature/Ingest/SubmissionProducerTest.php), [SubmissionsTest.php](tests/Feature/Ingest/SubmissionsTest.php); burst throughput and latency: TBD (load test), `loadtest/burst.mjs` planned.
 
 ### 5.2 No lost submissions
 
 Mechanism (I1, I2): `produce()` only enqueues locally, so `send()` calls `flush()` with a bounded timeout and then reads this message's own delivery report by opaque token; any error, timeout or missing report throws `DeliveryFailed` → 503. No code path returns 202 without a clean report. Producer: `acks=all`, `enable.idempotence=true`, bounded `message.timeout.ms`. `redpanda-init` forces `write_caching_default=false` and refuses to start the stack otherwise, so an ack means fsync. The consumer commits offsets only after its transaction commits; a crash in between replays the batch and `submission_ids` collapses it.
-Evidence: producer — [tests/Feature/Kafka/ProducerTest.php](tests/Feature/Kafka/ProducerTest.php); broker config — [compose.yaml](compose.yaml); consumer and reconciliation: pending.
+Spam (honeypot, bad or too-fresh or expired render token) receives a decoy 202 with a fresh id and is never produced (I13). That is a deliberate drop, and it is recorded: the `submission dropped` log line (info level, so no default filter hides it) with the reason is the audit trail behind this claim; nothing is dropped silently.
+Evidence: producer — [tests/Feature/Kafka/ProducerTest.php](tests/Feature/Kafka/ProducerTest.php); endpoint: 202 only with the exact envelope on the topic, 503 with nothing acked while the broker is down, decoys produce nothing — [tests/Feature/Ingest/SubmissionsTest.php](tests/Feature/Ingest/SubmissionsTest.php); client retry with the same id — [tests/js/submit.test.mjs](tests/js/submit.test.mjs); broker config — [compose.yaml](compose.yaml); consumer and reconciliation: pending.
 
 ### 5.3 Tenant isolation
 
@@ -155,8 +164,8 @@ Evidence: [tests/Feature/Schema/ApiRoleTest.php](tests/Feature/Schema/ApiRoleTes
 
 ### 5.4 Correctness under failure
 
-Mechanism (I12): every dependency has a defined degraded mode (section 9). Ingest may degrade to "accept and buffer", never to "accept and drop": Redis down → in-process limiter (planned); PostgreSQL down → ingest keeps serving from its version store; consumer down → the topic absorbs the backlog. The version store ([app/Ingest/VersionStore.php](app/Ingest/VersionStore.php)) reads versions through a bounded per-worker LRU (workers are recycled by `--max-requests`, so memory alone is not enough), then Redis (no expiry; versions are immutable), then PostgreSQL, filling Redis on the way back. Form state (`status`, `current_version_id`, the versions list I3 needs) is cached 10 s in the worker and 60 s in Redis, and served stale from the worker when PostgreSQL errors. Publish writes both keys after its commit, so a fresh version is servable at once and the store is already warm if the database goes away before anyone reads it; a Redis failure there is logged, not fatal. Only a cold key with both PostgreSQL and Redis unreachable yields 503 + `Retry-After`.
-Evidence: broker-down → 503 within the timeout — [tests/Feature/Kafka/ProducerTest.php](tests/Feature/Kafka/ProducerTest.php); page and version endpoints keep serving after PostgreSQL becomes unreachable, cold key with both down → 503, stale form state from worker memory, publish writes Redis and survives Redis being down — [tests/Feature/Ingest/VersionEndpointsTest.php](tests/Feature/Ingest/VersionEndpointsTest.php), [PageTest.php](tests/Feature/Ingest/PageTest.php), [tests/Feature/Api/FormsTest.php](tests/Feature/Api/FormsTest.php); consumer and rate limiter: pending.
+Mechanism (I12): every dependency has a defined degraded mode (section 9). Ingest may degrade to "accept and buffer", never to "accept and drop": Redis down → the rate limiter falls back to per-worker buckets and logs once a minute, the version store falls through to PostgreSQL; PostgreSQL down → ingest keeps serving from its version store; broker down → 503 with nothing acked, breaker open; consumer down → the topic absorbs the backlog. The version store ([app/Ingest/VersionStore.php](app/Ingest/VersionStore.php)) reads versions through a bounded per-worker LRU (workers are recycled by `--max-requests`, so memory alone is not enough), then Redis (no expiry; versions are immutable), then PostgreSQL, filling Redis on the way back. Form state (`status`, `current_version_id`, the versions list I3 needs) is cached 10 s in the worker and 60 s in Redis, and served stale from the worker when PostgreSQL errors. Publish writes both keys after its commit, so a fresh version is servable at once and the store is already warm if the database goes away before anyone reads it; a Redis failure there is logged, not fatal. Only a cold key with both PostgreSQL and Redis unreachable yields 503 + `Retry-After`.
+Evidence: broker-down → 503 within the timeout — [tests/Feature/Kafka/ProducerTest.php](tests/Feature/Kafka/ProducerTest.php); page and version endpoints keep serving after PostgreSQL becomes unreachable, cold key with both down → 503, stale form state from worker memory, publish writes Redis and survives Redis being down — [tests/Feature/Ingest/VersionEndpointsTest.php](tests/Feature/Ingest/VersionEndpointsTest.php), [PageTest.php](tests/Feature/Ingest/PageTest.php), [tests/Feature/Api/FormsTest.php](tests/Feature/Api/FormsTest.php); rate limiter fallback — [tests/Feature/Ingest/RateLimiterTest.php](tests/Feature/Ingest/RateLimiterTest.php); consumer: pending.
 
 ### 5.5 Version integrity
 
@@ -232,9 +241,9 @@ A definition is validated twice: `resources/js/form/validate.js` in the browser 
 
 | Failure | System behaviour | User-visible effect | Recovery |
 |---|---|---|---|
-| Redpanda down or slow | No clean report within `message.timeout.ms` → 503 + `Retry-After`; nothing acked | Retry prompt; `form.js` retries with the same id (planned) | Broker returns; duplicates collapse in `submission_ids` |
+| Redpanda down or slow | No clean report within `message.timeout.ms` → 503 + `Retry-After`; nothing acked. After N consecutive failures the per-worker breaker answers 503 immediately for a cooldown, then probes | The page keeps the submission in localStorage and retries with the same id (backoff, Retry-After); the user sees "kept on this device" | Broker returns; probe succeeds; duplicates collapse in `submission_ids` |
 | PostgreSQL down | Ingest serves pages and definitions from the version store (worker LRU, then Redis; publish pre-warms both); form state is served stale; consumer stops committing, topic absorbs backlog; `api` 503. A cold `ingest` instance still starts (role check deferred to first connection) and serves anything Redis holds; only a key in neither cache returns 503 + `Retry-After` | Published forms keep working; dashboard down; a form never read since its publish *and* evicted from Redis is unavailable until the DB returns | Consumer drains; nothing was acked without a broker fsync. In production the version keys move to object storage behind the CDN, so Redis is not the only Postgres-independent copy |
-| Redis down | Limiter fails open to in-process (planned); version store falls through to PostgreSQL and logs the miss; publish still succeeds | None; spam limits weaken to per-instance; slightly more DB reads on ingest | Shared counters resume; read-through refills the store |
+| Redis down | Rate limiter switches to per-worker buckets and logs once a minute; version store falls through to PostgreSQL; publish still succeeds | None; spam limits weaken to per-worker; slightly more DB reads on ingest | Shared counters resume; read-through refills the store |
 | Consumer down | Topic retains; lag grows | Submissions appear late | Restart from last committed offset; replay is idempotent |
 | One ingest instance down | Removed from the balancer; in-flight requests without a report are unacked | A few network errors; clients retry with the same id | Autoscaling replaces it (designed) |
 | CDN down (designed) | Page and definition requests fall through to `ingest` | Slower loads | `immutable` responses refill |
@@ -243,7 +252,7 @@ A definition is validated twice: `resources/js/form/validate.js` in the browser 
 ## 10. Production deployment (designed)
 
 - Redpanda: three brokers in three availability zones, `submissions` RF=3, `min.insync.replicas=2`, `acks=all`, write caching off. One broker loss keeps writes flowing; two stop ingest with 503s rather than silent loss.
-- Ingest: stateless Octane pods behind a load balancer, autoscaled on CPU and p99 ack latency. Page and definition JSON via CDN: `immutable` on versioned URLs, short max-age on the current-version pointer.
+- Ingest: stateless Octane pods behind a load balancer, autoscaled on CPU and p99 ack latency. Page and definition JSON via CDN: `immutable` on versioned URLs, short max-age on the current-version pointer. `TRUSTED_PROXIES` names the load balancer/CDN ranges so `X-Forwarded-For` yields the visitor IP for the per-IP bucket; unset, the socket IP is used and every visitor behind a proxy would share one bucket.
 - Consumers: at most one per partition, so scaling stops at 12 without repartitioning; batch size and commit interval: TBD (load test).
 - Noisy neighbours: per-tenant rate limits at ingest; Kafka quotas per producer principal; large tenants move to a dedicated topic and consumer group — a routing change, not a schema change.
 - Retention: topic retention covers the longest tolerated consumer outage (assumption: 7 days). Monthly partitions older than 13 months are detached and archived to object storage as Parquet; `submission_ids` pruned in step.
@@ -262,11 +271,11 @@ A definition is validated twice: `resources/js/form/validate.js` in the browser 
 | Schema, monthly partitions + DEFAULT, immutability trigger, composite version FK | Built | `database/migrations/`, `tests/Feature/Schema/` |
 | Four least-privilege roles, RLS policies, `resolve_api_key`, runtime role check, `migrate` service | Built | `database/migrations/…000003…`, `app/Database/RuntimeRole.php`, `docker/postgres/init.sh`, `compose.yaml` |
 | Public definition JSON (`immutable`), current-version pointer, version store (I12), form page with CSP and JSON data block (I9), render token issue/verify (I13) | Built | `app/Ingest/`, `app/Http/Controllers/Public/`, `resources/views/form/`, `tests/Feature/Ingest/` |
-| Submission endpoint, token verification and minimum fill time (I13), pinning window (I3) | Designed | section 4 |
+| `POST /v1/forms/{form}/submissions`: rate limits (I13), token + honeypot decoys (I13), pinning window (I3), validation (I6, I7), envelope with `received_at` and pseudonymous meta, produce + flush + report (I1, I14), circuit breaker | Built | `app/Http/Controllers/Public/SubmissionController.php`, `app/Ingest/`, `tests/Feature/Ingest/SubmissionsTest.php` |
 | Consumer: transactional dedupe, offset commit (I2) | Designed | section 4 |
 | Control-plane API: API keys (`tenants:create`), scoped tenant binding + request transaction (I11), forms CRUD, drafts with advisory validation and size caps, publish with `PublishCompat` (I5), versions | Built | `app/Http/`, `app/Tenancy/`, `app/Forms/PublishCompat.php`, `conformance/publish/`, `tests/Feature/Api/` |
 | `validate.js` (pure port) with the full conformance parity run; `render.js` (visibility, errors) | Built | `resources/js/form/`, `tests/js/validate.test.mjs` |
-| Client-side submit with retry on 503, same id (I2) | Designed | section 4 |
+| Client-side submit: UUIDv7 reused on retry, backoff + jitter with Retry-After, pending submission in localStorage restored on load, 409/422 handling (I2) | Built | `resources/js/form/submit.js`, `render.js`, `tests/js/submit.test.mjs` |
 | CSV export, streaming (I10, I15) | Designed | CLAUDE.md |
 | Load generator, reconciliation, chaos script | Planned | `loadtest/` |
 | CDN, archival, ClickHouse via CDC | Designed | sections 3, 10 |
