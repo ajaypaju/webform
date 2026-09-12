@@ -1,6 +1,6 @@
 # Architecture
 
-Version 1. Every capacity figure is an assumption; nothing here is measured. Values that need a load test are written "TBD (load test)".
+Version 1. Capacity figures in §2 are assumptions and labelled so. The only measured numbers are in "Measured results" below §2 and in §5.1/§5.2; each names the command that produced it. They come from one laptop, not a benchmark.
 
 ## 1. Overview
 
@@ -26,25 +26,43 @@ Derived, line by line:
 - Heap/day = 2,928,000 × 2.5 KB = 7,320,000 KB ≈ 7.3 GB.
 - Indexes (primary key, tenant/form/time, GIN) at an assumed 50% overhead: 7.3 × 1.5 ≈ 11 GB/day.
 - Storage/year = 11 GB × 365 ≈ 4.0 TB; rows/year = 2,928,000 × 365 ≈ 1.07 B. Monthly partitions of ≈ 330 GB are the unit of archival.
-- Steady broker ingress = 20/s × 2.5 KB = 50 KB/s; daily-burst ingress = 2,000/s × 2.5 KB = 5 MB/s, 15 MB/s of cluster write traffic at RF=3 (designed). Bandwidth is not the constraint; fsync latency at `acks=all` is. Ack latency: TBD (load test).
+- Steady broker ingress = 20/s × 2.5 KB = 50 KB/s; daily-burst ingress = 2,000/s × 2.5 KB = 5 MB/s, 15 MB/s of cluster write traffic at RF=3 (designed). Bandwidth is not the constraint; fsync latency at `acks=all` is. Measured end-to-end ack latency at 200/s sustained: p50 9 ms, p99 21 ms (below).
 - Definition reads are served from the CDN (designed) with `immutable`, so `ingest` read load is bounded by cache misses.
 
 ### Burst envelope
 
-Ingest and the broker scale horizontally and are sized for the spike; PostgreSQL is sized for the consumer drain rate, and the topic is the buffer between the two. With ingress rate `R` for duration `T`, steady rate `S`, and consumer drain rate `D` (TBD (load test); the consumer batches inserts, so `D` is bounded by PostgreSQL write throughput, not by broker reads):
+Ingest and the broker scale horizontally and are sized for the spike; PostgreSQL is sized for the consumer drain rate, and the topic is the buffer between the two. With ingress rate `R` for duration `T`, steady rate `S`, and consumer drain rate `D` (measured: ≥ 24,000 rows/s on the dev laptop, `make drain`; the consumer batches 500 rows per transaction, so `D` is bounded by PostgreSQL write throughput and the poll/commit loop, not by broker reads):
 
-- ingest instances = ⌈R / per-instance rate⌉, per-instance rate TBD (load test)
-- backlog = (R − D) × T
-- drain time = backlog / (D − S)
+- ingest instances = ⌈R / per-instance rate⌉ — per-instance ack capacity is not measured: on one form the product's own per-form bucket (2,000 burst, 200/s sustained) is the binding limit, so measuring it needs load spread over many tenants
+- backlog = (R − D) × T while both run; with `D` ≥ 2× the assumed 10,000/s spike, a live consumer builds no backlog at all — the topic is a buffer for *outages*, not for throughput
+- backlog after a consumer outage of `X` seconds = R × X; drain time = R × X / (D − S)
 - requirement: topic retention ≫ drain time, and `D > S` with margin or the backlog never clears
 
-Worked example (assumption: R = 10,000/s for T = 600 s, S = 20/s; illustrative D = 3,000/s, not measured):
+Worked example (assumptions: R = 10,000/s, S = 20/s, consumer down for X = 600 s; measured D = 24,000/s, taken conservatively as 20,000/s for a shared production database):
 
-- backlog = (10,000 − 3,000) × 600 = 4,200,000 rows
-- drain time = 4,200,000 / (3,000 − 20) ≈ 1,409 s ≈ 23.5 minutes
-- topic retention 7 days = 604,800 s, about 430× the drain time: requirement met
+- backlog = 10,000 × 600 = 6,000,000 rows
+- drain time = 6,000,000 / (20,000 − 20) ≈ 300 s ≈ 5 minutes after the consumer returns
+- topic retention 7 days = 604,800 s, about 2,000× the drain time: requirement met
 - broker ingress during the spike = 10,000/s × 2.5 KB = 25 MB/s; at RF=3 that is 75 MB/s of cluster write traffic (25 leader + 50 replication) and 15 GB of spike data per replica, 45 GB across the cluster
 - the dashboard lags by up to the drain time; nothing is lost, because every 202 was preceded by a broker fsync
+
+### Measured results (local dev — not a benchmark)
+
+Hardware: one MacBook (Apple M4, 16 GB), Docker Desktop VM with 10 CPUs / 8 GB, every service on that one node, Redpanda single broker RF=1, `write_caching=false`. Generator (`loadtest/`, Node 22) runs inside the same VM. Numbers are from `make load`, `make chaos` and `make drain` on 2026-09-12; the raw per-request JSONL and summaries are in `loadtest/out/` (gitignored). Treat them as "this design works and here is roughly where the local limits are", not as production capacity.
+
+| Run (command) | Sent | Acked (202) | Refused | Ack latency p50 / p95 / p99 / max (incl. retries) | Reconcile |
+|---|---|---|---|---|---|
+| Within limits: `make load ARGS="--spike 200 --spike-secs 120 --ramp 5 --post 10"` | 25,500 | 25,500 | 0 | 9 / 15 / 21 / 105 ms | 25,500 stored, 0 missing, 0 phantoms, 0 duplicates |
+| Default spike: `make load` (2,000/s × 60 s) | 140,691 | 82,215 | 58,476 (all 429) | 2,278 / 8,954 / 9,278 / 10,325 ms | 82,215 stored, 0 / 0 / 0 |
+| Chaos: `make chaos` (300/s × 150 s; consumer, Postgres, Redpanda stopped in turn; consumer process `kill -9`) | 48,500 | 33,318 | 15,182 (429: 13,640; 503: 764; network: 778) | 1,238 / 14,665 / 30,133 / 38,411 ms | 35,007 stored, 0 missing, 0 phantoms, 0 duplicates; 1,689 refused-but-stored |
+| Drain: `make drain N=60000` | 60,000 produced at 7,170/s (each produce+flush+report) | — | — | — | 60,000 rows in 2.5 s → D ≥ 24,000 rows/s |
+
+What the rows mean:
+
+- **Within limits** is the clean number: 200/s sustained for two minutes, every request acked on the first attempt, p99 21 ms end to end (validation, produce, flush, delivery report), generator queueing p99 2 ms.
+- **Default spike** is the product refusing by design: the per-form bucket admits 2,000 then 200/s, so a 2,000/s spike on one form is 532,326 × 429 responses and 58,476 ids that gave up after 6 attempts. The ack latency there is retry time, not server time. The generator itself saturated (2,048 workers held in retry sleeps; queueing p50 120 s) and says so in its report — the achieved rate is the limiter's, not the laptop's.
+- **Chaos** is the claim under fault: 0 acked ids missing across a consumer stop, a Postgres stop, a Redpanda stop and a process crash. The 1,689 "refused but stored" ids are the ambiguous-ack case from §4 — the client saw a 503 or a network error after the broker had in fact persisted the record — stored exactly once because ids are reused and `submission_ids` dedupes. Recovery after the crash took ≈ 45 s before the restarted consumer got its partitions back: Kafka's `session.timeout.ms` for the dead member, not a design property of this system.
+- **Drain**: neither the consumer nor PostgreSQL came near saturation (each 500-row batch commits in 11–23 ms); the 2.5 s includes consumer start-up. What *did* saturate during the spike and chaos runs was the load generator, and what bound the acked rate was the per-form bucket — both reported by the tooling rather than hidden.
 
 ## 3. Component diagram
 
@@ -144,13 +162,13 @@ The consumer (`submissions:consume`, role `webform_writer`) is the only writer o
 
 Mechanism: no database write on the request path; the only synchronous dependency is the broker ack. Octane keeps the framework booted, a per-worker `Producer` singleton keeps broker connections open, and the message key is the submission id so a hot form spreads across all 12 partitions (I14). Per-worker singletons are resolved at worker boot through Octane's `warm` list: a singleton first resolved inside a request belongs to that request's sandbox container and does not survive it — found on the running stack when the breaker failed to open, not by the test suite. Backpressure is explicit: no ack within `message.timeout.ms` means 503 + `Retry-After`, never a queued-in-memory 202.
 A per-worker circuit breaker ([app/Ingest/SubmissionProducer.php](app/Ingest/SubmissionProducer.php)) opens after N consecutive delivery failures and answers 503 without a broker round-trip for a cooldown, then lets one request probe — otherwise a burst during a broker outage pins every worker on `message.timeout.ms`. A fatal librdkafka error recreates the producer; an idempotent producer stays broken otherwise.
-Evidence: [tests/Feature/Kafka/ProducerTest.php](tests/Feature/Kafka/ProducerTest.php); breaker open/probe/close, re-open on a failed probe, fatal recreate, and the HTTP path returning 503 never 202 while the broker is down — [tests/Feature/Ingest/SubmissionProducerTest.php](tests/Feature/Ingest/SubmissionProducerTest.php), [SubmissionsTest.php](tests/Feature/Ingest/SubmissionsTest.php); burst throughput and latency: TBD (load test), `loadtest/burst.mjs` planned.
+Evidence: [tests/Feature/Kafka/ProducerTest.php](tests/Feature/Kafka/ProducerTest.php); breaker open/probe/close, re-open on a failed probe, fatal recreate, and the HTTP path returning 503 never 202 while the broker is down — [tests/Feature/Ingest/SubmissionProducerTest.php](tests/Feature/Ingest/SubmissionProducerTest.php), [SubmissionsTest.php](tests/Feature/Ingest/SubmissionsTest.php). Measured (§2, "Measured results"): 200/s sustained for 120 s on one form, 25,500/25,500 acked, p50 9 ms, p99 21 ms end to end; a 2,000/s spike on one form is refused by the per-form bucket as designed (532,326 × 429), and the consumer drains ≥ 24,000 rows/s.
 
 ### 5.2 No lost submissions
 
 Mechanism (I1, I2): `produce()` only enqueues locally, so `send()` calls `flush()` with a bounded timeout and then reads this message's own delivery report by opaque token; any error, timeout or missing report throws `DeliveryFailed` → 503. No code path returns 202 without a clean report. Producer: `acks=all`, `enable.idempotence=true`, bounded `message.timeout.ms`. `redpanda-init` forces `write_caching_default=false` and refuses to start the stack otherwise, so an ack means fsync. The consumer commits offsets only after its transaction commits; a crash in between replays the batch and `submission_ids` collapses it.
 Spam (honeypot, bad or too-fresh or expired render token) receives a decoy 202 with a fresh id and is never produced (I13). That is a deliberate drop, and it is recorded: the `submission dropped` log line (info level, so no default filter hides it) with the reason is the audit trail behind this claim; nothing is dropped silently.
-Evidence: producer — [tests/Feature/Kafka/ProducerTest.php](tests/Feature/Kafka/ProducerTest.php); endpoint: 202 only with the exact envelope on the topic, 503 with nothing acked while the broker is down, decoys produce nothing — [tests/Feature/Ingest/SubmissionsTest.php](tests/Feature/Ingest/SubmissionsTest.php); client retry with the same id — [tests/js/submit.test.mjs](tests/js/submit.test.mjs); broker config — [compose.yaml](compose.yaml); consumer and reconciliation: pending.
+Evidence: producer — [tests/Feature/Kafka/ProducerTest.php](tests/Feature/Kafka/ProducerTest.php); endpoint: 202 only with the exact envelope on the topic, 503 with nothing acked while the broker is down, decoys produce nothing — [tests/Feature/Ingest/SubmissionsTest.php](tests/Feature/Ingest/SubmissionsTest.php); client retry with the same id — [tests/js/submit.test.mjs](tests/js/submit.test.mjs); broker config — [compose.yaml](compose.yaml); consumer exactly-once — [tests/Feature/Consumer/ConsumerTest.php](tests/Feature/Consumer/ConsumerTest.php). Reconciliation (`loadtest/reconcile.mjs`, §2 "Measured results"): across a clean 25,500-request run, a 140,691-request run with 58,476 refusals, and a chaos run with the consumer stopped, PostgreSQL stopped, Redpanda stopped and the consumer process killed, every acked id was stored, no stored id was unsent, and no id was stored twice. "Sent but not acked" ids are refused (429/503), not lost: no 202 was ever issued for them, and the 1,689 that the chaos run stored anyway are the ambiguous-ack case collapsing as designed.
 
 ### 5.3 Tenant isolation
 
@@ -251,7 +269,7 @@ A definition is validated twice: `resources/js/form/validate.js` in the browser 
 | Redpanda down or slow | No clean report within `message.timeout.ms` → 503 + `Retry-After`; nothing acked. After N consecutive failures the per-worker breaker answers 503 immediately for a cooldown, then probes | The page keeps the submission in localStorage and retries with the same id (backoff, Retry-After); the user sees "kept on this device" | Broker returns; probe succeeds; duplicates collapse in `submission_ids` |
 | PostgreSQL down | Ingest serves pages and definitions from the version store (worker LRU, then Redis; publish pre-warms both); form state is served stale; the consumer retries its in-flight batch with backoff and commits no offsets, so the topic absorbs the backlog; `api` 503. A cold `ingest` instance still starts (role check deferred to first connection) and serves anything Redis holds; only a key in neither cache returns 503 + `Retry-After` | Published forms keep working; dashboard down; a form never read since its publish *and* evicted from Redis is unavailable until the DB returns | Consumer drains; nothing was acked without a broker fsync. In production the version keys move to object storage behind the CDN, so Redis is not the only Postgres-independent copy |
 | Redis down | Rate limiter switches to per-worker buckets and logs once a minute; version store falls through to PostgreSQL; publish still succeeds | None; spam limits weaken to per-worker; slightly more DB reads on ingest | Shared counters resume; read-through refills the store |
-| Consumer down | Topic retains; lag grows (logged per batch) | Submissions appear late | `restart: unless-stopped`; resumes from the last committed offset; the replayed batch collapses in `submission_ids` |
+| Consumer down | Topic retains; lag grows (logged per batch) | Submissions appear late | `restart: unless-stopped` (tini as PID 1 so a process crash exits the container); resumes from the last committed offset; the replayed batch collapses in `submission_ids`. Measured: a crashed member's partitions come back after ≈ 45 s (`session.timeout.ms`), then 60,000 rows drain in 2.5 s |
 | Poison message | Malformed envelope → `submissions.dlq` + reason header, offset advances; schema-rejected row → row-by-row fallback, offender dead-lettered | None; the DLQ is the operator's queue | Inspect the DLQ; the original bytes are intact |
 | One ingest instance down | Removed from the balancer; in-flight requests without a report are unacked | A few network errors; clients retry with the same id | Autoscaling replaces it (designed) |
 | CDN down (designed) | Page and definition requests fall through to `ingest` | Slower loads | `immutable` responses refill |
@@ -285,14 +303,14 @@ A definition is validated twice: `resources/js/form/validate.js` in the browser 
 | `validate.js` (pure port) with the full conformance parity run; `render.js` (visibility, errors) | Built | `resources/js/form/`, `tests/js/validate.test.mjs` |
 | Client-side submit: UUIDv7 reused on retry, backoff + jitter with Retry-After, pending submission in localStorage restored on load, 409/422 handling (I2) | Built | `resources/js/form/submit.js`, `render.js`, `tests/js/submit.test.mjs` |
 | CSV export, streaming (I10, I15) | Designed | CLAUDE.md |
-| Load generator, reconciliation, chaos script | Planned | `loadtest/` |
+| Load generator (arrival-rate schedule, same-id retries, JSONL), reconciliation (acked = stored, no phantoms, no duplicates), chaos script, drain measurement | Built | `loadtest/`, `compose.load.yaml`, `make load / chaos / drain` |
 | CDN, archival, ClickHouse via CDC | Designed | sections 3, 10 |
 | Degraded-dependency fallbacks (I12) | Designed | section 9 |
 
 ## 12. Open questions and next steps
 
 1. Build order: schema, then ingest endpoint + consumer (closes the I1/I2 loop), then control plane, then form page. Reconciliation (`burst.mjs` acked ids vs rows) is the acceptance test.
-2. Consumer batch shape: one transaction per poll batch vs per N records — replay size on crash vs transaction overhead. TBD (load test).
+2. Consumer batch shape: one transaction per poll batch vs per N records — replay size on crash vs transaction overhead. Measured locally: 500-row batches commit in 11–23 ms (`make drain`), so the batch size is not the bottleneck; not re-tuned.
 3. `Producer` after a fatal idempotent-producer error: recreate the client, or rely on Octane `--max-requests` recycling.
 4. 24 h superseded-version grace is an assumption; it bounds how long a stale tab can still submit.
 5. Replace `\s` in accepted patterns with an explicit class to close the JS/PCRE gap, or leave it documented.

@@ -138,9 +138,9 @@ HTTP caching: `GET /v1/forms/{form}/versions/{version}` (definition JSON) -> `Ca
 docker compose up --build              full stack
 docker compose exec api php artisan test
 docker compose logs -f consumer         one structured line per batch: count, unique, inserted, duplicates, rejected, lag, duration_ms
-cd loadtest && node burst.mjs          burst + acked-id capture
-cd loadtest && node reconcile.mjs      reconciliation report
-./loadtest/chaos.sh                    burst while stopping consumer/postgres/broker, then reconcile
+make load [ARGS="--spike 200 ..."]     load overlay + tenant + arrival-rate burst + reconcile (loadtest/README.md)
+make chaos                             burst while stopping consumer/postgres/broker + consumer crash, then reconcile
+make drain N=60000                     consumer drain rate D: N envelopes on the topic with the consumer stopped, then time the drain
 ./scripts/demo.sh                      tenant + demo form (every type, visibility chain), published; prints page URL and key
 make tenant name="Acme"                tenant + API key, printed once (runs tenants:create as the owner role)
 ```
