@@ -1,6 +1,6 @@
 # webform
 
-A multi-tenant form builder and submission platform. Tenants define forms through an API-key control plane (`api`),
+A multi-tenant form builder and submission platform. Tenants define forms in a session dashboard or through an API-key control plane (both `api`),
 the public data plane (`ingest`) renders forms and accepts submissions into a Redpanda topic, and a consumer writes
 them to PostgreSQL exactly once. The claim the design is built around: **a submission that received a 202 is never
 lost** — proven by reconciliation under a chaos run that stops the consumer, PostgreSQL and the broker in turn.
@@ -13,6 +13,7 @@ Everything runs in Docker; nothing is installed on the host. [ARCHITECTURE.md](A
 ```
 make up            # build, generate keys into .env, start api/ingest/consumer/postgres/redis/redpanda, wait until healthy
 ./scripts/demo.sh  # tenant + a demo form with every field type, published; prints the URL and API key
+                   # then http://localhost:8000/login — paste the key to open the form builder
 make test          # PHP suite against real Postgres/Redpanda + JS conformance suite
 make load          # load overlay, tenant, arrival-rate burst, reconciliation
 make chaos         # burst while stopping consumer, postgres, redpanda, and crashing the consumer; then reconcile
@@ -37,11 +38,11 @@ form page: http://localhost:8080/f/01a09629-3b28-70f6-b820-79ec7187fa0a
 version:   http://localhost:8080/v1/forms/01a09629-3b28-70f6-b820-79ec7187fa0a
 ```
 
-`make test` — the Pest suite (22 feature files against real PostgreSQL under its four roles, Redis and Redpanda; 6 unit
+`make test` — the Pest suite (25 feature files against real PostgreSQL under its four roles, Redis and Redpanda; 6 unit
 files), then the JS suite (`node --test`, no npm dependencies).
 ```
-  Tests:    408 passed (1383 assertions)
-  Duration: 20.28s
+  Tests:    420 passed (1480 assertions)
+  Duration: 21.47s
 # tests 13
 # pass 13
 ```
@@ -89,12 +90,15 @@ app/Forms/            DefinitionRules, SubmissionValidator (pure PHP), Visibilit
 app/Ingest/           VersionStore (worker LRU → Redis → Postgres), RenderToken, RateLimiter, SubmissionProducer (breaker)
 app/Consumer/         Envelope, BatchWriter (one transaction, dedupe), Consumer (offsets after commit, DLQ, backoff)
 app/Submissions/      SubmissionQuery (keyset + filters), CsvExport (streamed, version-union columns, injection-safe)
-app/Http/             AuthenticateApiKey (tenant scope + per-request transaction), PublicHeaders (CSP), controllers
-app/Tenancy/          TenantContext (scoped per request), ApiKey
+app/Http/             AuthenticateApiKey + DashboardTenant (session) -> the same tenant transaction; PublicHeaders (CSP);
+                      controllers: /v1 (FormController, SubmissionController), Public (ingest), Dashboard (login, builder)
+app/Tenancy/          TenantContext (scoped per request), TenantTransaction, ApiKey
 app/Database/         RuntimeRole: refuses to run as the wrong Postgres role
 app/Kafka/            Producer: produce + flush + per-message delivery report
-resources/js/form/    validate.js (port of the PHP validator), render.js, patterns.js (Web Worker), submit.js
-resources/views/form/ the server-rendered page
+resources/js/form/    validate.js (port of the PHP validator), render.js, patterns.js (Web Worker), submit.js, messages.js
+resources/js/dashboard/ builder.js: field editor, visibility editor, live preview through render.js; no framework
+resources/views/      form/ the public page; dashboard/ login, forms list, builder (Blade + JSON data block)
+routes/               api.php (/v1, stateless), dashboard.php (web group: session + CSRF), public.php (ingest)
 conformance/          fixtures run by BOTH the PHP and the JS suites (submissions, definitions, patterns, publish)
 database/migrations/  raw SQL: partitions, composite FKs, immutability trigger, roles, RLS policies
 docker/postgres/      init.sh: four least-privilege roles
@@ -153,13 +157,26 @@ curl -s "$API/v1/forms/$FORM/submissions/export.csv" -H "Authorization: Bearer $
 # submission_id,received_at,form_version_id,Email,Plan,Seats
 ```
 
+## Dashboard
+
+`http://localhost:8000/login` — paste an API key. The key is hashed and resolved exactly as a bearer token would be,
+and only the tenant id is kept, in a server-side Redis session behind an `httpOnly`, `SameSite=Lax` cookie; the key
+itself never reaches the browser. Login attempts are rate-limited per IP, the session id is regenerated on login,
+logout destroys the session, and every mutating route needs a CSRF token. A session cookie is never a credential for
+`/v1`, and a bearer key is never one for `/dashboard`; both are tested. The builder edits a draft (add, move, remove
+fields; per-type rules; visibility conditions limited to fields above), shows advisory errors per field, publishes
+through the same code the API uses, and previews the form with the public page's own `render.js`. Field ids are
+minted on the server from the label and never change afterwards. The session model is in
+[ARCHITECTURE.md §5.3](ARCHITECTURE.md#53-tenant-isolation).
+
 ## Built vs designed
 
 Built: the whole path from API key to CSV export — durable ingest with a delivery-confirmed ack, the exactly-once
 consumer, four Postgres roles with row-level security, the server-rendered page with a strict CSP, a validator that
-exists twice and is proven identical by shared fixtures, and the load/chaos tooling that produced the numbers below.
+exists twice and is proven identical by shared fixtures, the session dashboard with the form builder, and the
+load/chaos tooling that produced the numbers below.
 Designed, not built: CDN, ClickHouse via CDC, object storage, multi-region, per-tenant sharding, webhooks, GDPR
-deletion, a visual builder, async S3 exports, browser automation. The full table and the known limits (including one
+deletion, a submissions viewer in the dashboard, async S3 exports, browser automation. The full table and the known limits (including one
 found by the query planner: the api role cannot use the GIN index under RLS) are in
 [ARCHITECTURE.md §11](ARCHITECTURE.md#11-built-vs-designed).
 
