@@ -54,8 +54,7 @@ test: test-php test-js
 test-php:
 	$(COMPOSE) exec api sh -c 'APP_ENV=testing DB_DATABASE=webform_test CACHE_STORE=array REDIS_DB=2 DB_USERNAME=webform_owner DB_PASSWORD=$$DB_OWNER_PASSWORD php artisan test'
 
-## test-js: JS validator parity + cross-engine regex check (tests/js), no npm dependencies. ~20s of it is the
-## redos_* case: JS has no backtrack limit and V8's linear fallback engine can't do u-mode (conformance/README.md).
+## test-js: JS validator parity + cross-engine regex check (tests/js), no npm dependencies
 test-js:
 	docker run --rm -v "$(CURDIR):/app:ro" -w /app node:22-alpine node --test tests/js/*.test.mjs
 

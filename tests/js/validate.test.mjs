@@ -5,10 +5,10 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { validate } from '../../resources/js/form/validate.js';
 
-// PHP/JS parity: every submissions case, exact valid/errors/output.
-// The redos_* case gives the same result as PHP but takes seconds: JS has no backtrack limit, and V8's linear
-// fallback engine (--enable-experimental-regexp-engine-on-excessive-backtracks) does not support u-mode, which we
-// need for \p{..}. Documented in conformance/README.md; the server is authoritative.
+// PHP/JS parity: every submissions case, exact valid/errors/output — except redos_*, which is skipped: V8 has no
+// backtrack limit in u-mode (its linear fallback engine can't do u-mode), so the case would run ~20 s. Server-side
+// protection is proven by the PHP test (SafePattern, I8); in the browser render.js runs patterns in a Web Worker
+// with a 50 ms budget and skips the check on timeout.
 const dir = join(dirname(fileURLToPath(import.meta.url)), '..', '..', 'conformance', 'submissions');
 
 for (const file of readdirSync(dir).sort()) {
@@ -16,12 +16,11 @@ for (const file of readdirSync(dir).sort()) {
 
   test(`submissions/${file}: ${cases.length} cases`, () => {
     for (const c of cases) {
-      const started = performance.now();
+      if (c.name.startsWith('redos_')) continue;
+
       const result = validate(structuredClone(c.definition), structuredClone(c.input));
 
       assert.deepEqual(result, { valid: c.valid, errors: c.errors, data: c.output }, `${file} › ${c.name}`);
-
-      if (c.name.startsWith('redos_')) console.log(`# ${c.name}: ${(performance.now() - started).toFixed(0)} ms (no backtrack limit in JS)`);
     }
   });
 }

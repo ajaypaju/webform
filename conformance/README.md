@@ -36,8 +36,10 @@ lists `{pattern, accept}` cases; `tests/js/patterns.test.mjs` proves every accep
 on exotic input — never bad stored data)
 - `\s`: JS matches Unicode spaces (U+00A0, U+2028, U+3000 …); PCRE without UCP matches ASCII whitespace only.
 - `.`: neither matches `\n`; JS also excludes `\r`, U+2028 and U+2029, PCRE (with `u`) matches them.
-- No backtrack limit in JS: a pattern PHP cuts off with `pattern` gives the same answer in the browser but may take seconds
-  (`^(a+)+$` on 31 chars ≈ 20 s in V8). V8's linear fallback engine cannot be used because it does not support the `u` flag.
+- No backtrack limit in JS: a pattern PHP cuts off with `pattern` would run to completion in the browser (`^(a+)+$` on
+  31 chars ≈ 20 s in V8; its linear fallback engine cannot be used with the `u` flag). `tests/js` therefore skips `redos_*`;
+  in the browser `render.js` runs patterns in a Web Worker with a 50 ms budget and skips the check on timeout — the field
+  submits and the server decides, so a pathological pattern costs the visitor nothing.
 - `{}` as a value reads as "not provided" on both sides: PHP cannot tell `{}` from `[]`, so JS mirrors it.
 
 ## publish/*.json — `PublishCompat::check(prior_versions, draft)` (I5)

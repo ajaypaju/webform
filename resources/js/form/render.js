@@ -1,6 +1,7 @@
 // Enhances the server-rendered form: live visibility (I6), inline error display, typed value collection.
 // DOM writes go through textContent / setAttribute / hidden only — never markup from strings (I9).
 import { validate, visibleIds, normalize } from './validate.js';
+import { patternMatcher } from './patterns.js';
 
 const MESSAGES = {
   required: 'This field is required.',
@@ -83,9 +84,13 @@ export function enhance(form) {
   form.addEventListener('change', refresh);
   refresh();
 
-  form.addEventListener('submit', (event) => {
+  form.addEventListener('submit', async (event) => {
     event.preventDefault();
-    const result = validate({ fields }, collect(form, fields));
+    const input = collect(form, fields);
+    const values = Object.fromEntries(fields.map((field) => [field.id, normalize(input[field.id])]));
+
+    // WHY: regexes run in a worker with a time budget; the main thread never blocks on a customer's pattern.
+    const result = validate({ fields }, input, await patternMatcher(fields, values));
     showErrors(form, result.errors);
     form.dispatchEvent(new CustomEvent('form:validated', { detail: result }));
   });

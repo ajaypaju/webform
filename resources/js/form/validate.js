@@ -82,7 +82,12 @@ export function isDate(value) {
   return date.getUTCFullYear() === y && date.getUTCMonth() === mo - 1 && date.getUTCDate() === d;
 }
 
-function matches(pattern, value) {
+/**
+ * Synchronous pattern check: what the conformance suite tests. A matcher may return null to mean "unknown, let the
+ * server decide" — render.js does that when its Web Worker times out (JS has no backtrack limit).
+ * @returns {boolean|null}
+ */
+export function matchSync(pattern, value) {
   try {
     return new RegExp(pattern, 'u').test(value);
   } catch {
@@ -90,12 +95,12 @@ function matches(pattern, value) {
   }
 }
 
-function text(rules, value) {
+function text(rules, value, matcher) {
   if (typeof value !== 'string') return 'type';
   const len = length(value);
   if (len < (rules.min_length ?? 0)) return 'min_length';
   if (len > (rules.max_length ?? TEXT_DEFAULT_MAX_LENGTH)) return 'max_length';
-  if (rules.pattern !== undefined && !matches(rules.pattern, value)) return 'pattern';
+  if (rules.pattern !== undefined && matcher(rules.pattern, value) === false) return 'pattern';
   return null;
 }
 
@@ -142,12 +147,12 @@ function date(rules, value) {
 }
 
 /** @returns {string|null} the first failing code for an already-normalized, provided value */
-export function check(field, value) {
+export function check(field, value, matcher = matchSync) {
   const rules = field.rules ?? {};
 
   switch (field.type) {
     case 'text':
-      return text(rules, value);
+      return text(rules, value, matcher);
     case 'email':
       return email(rules, value);
     case 'number':
@@ -168,8 +173,11 @@ export function check(field, value) {
 
 // --- SubmissionValidator ------------------------------------------------------------------------
 
-/** @returns {{valid: boolean, errors: Record<string, string[]>, data: Record<string, unknown>}} */
-export function validate(definition, input) {
+/**
+ * @param {(pattern: string, value: string) => boolean|null} [matcher] pattern check; defaults to synchronous RegExp
+ * @returns {{valid: boolean, errors: Record<string, string[]>, data: Record<string, unknown>}}
+ */
+export function validate(definition, input, matcher = matchSync) {
   const fields = definition.fields;
   const values = {};
 
@@ -189,7 +197,7 @@ export function validate(definition, input) {
       continue;
     }
 
-    const code = check(field, value);
+    const code = check(field, value, matcher);
     if (code !== null) errors[field.id] = [code];
     else data[field.id] = value;
   }

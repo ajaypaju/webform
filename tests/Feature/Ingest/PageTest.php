@@ -65,7 +65,7 @@ it('sends the exact CSP, nosniff and referrer headers on every public response',
 
     foreach (["/f/{$form}", "/v1/forms/{$form}", "/v1/forms/{$form}/versions/{$version}", '/f/not-a-uuid'] as $path) {
         $this->get($path)
-            ->assertHeader('Content-Security-Policy', "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src 'self'; form-action 'self'; base-uri 'none'; frame-ancestors *")
+            ->assertHeader('Content-Security-Policy', "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src 'self'; worker-src 'self'; form-action 'self'; base-uri 'none'; frame-ancestors *")
             ->assertHeader('X-Content-Type-Options', 'nosniff')
             ->assertHeader('Referrer-Policy', 'no-referrer')
             ->assertHeaderMissing('X-Frame-Options');

@@ -9,7 +9,7 @@ use Symfony\Component\HttpFoundation\Response;
 // I9: the public origin serves tenant-authored content. Nothing inline, nothing from elsewhere, embeddable anywhere.
 final class PublicHeaders
 {
-    public const CSP = "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src 'self'; form-action 'self'; base-uri 'none'; frame-ancestors *";
+    public const CSP = "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src 'self'; worker-src 'self'; form-action 'self'; base-uri 'none'; frame-ancestors *";
 
     public function handle(Request $request, Closure $next): Response
     {
