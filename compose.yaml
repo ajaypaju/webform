@@ -122,6 +122,9 @@ services:
       DB_PASSWORD: ${DB_WRITER_PASSWORD}
       LOG_CHANNEL: stderr
     command: php artisan submissions:consume
+    # WHY: tini as PID 1 so the PHP process is a child: signals forward, and a crash of the process (not a
+    # `docker stop`) exits the container and triggers the restart policy. PID 1 itself cannot be SIGKILLed.
+    init: true
     restart: unless-stopped
     stop_grace_period: 30s
     # The loop touches a heartbeat file every iteration (idle polls included); stale for a minute means stuck.
@@ -162,3 +165,10 @@ services:
 volumes:
   pgdata:
   redpanda:
+
+# WHY: a fixed subnet so compose.load.yaml can name it as the trusted-proxy range without recreating the network.
+networks:
+  default:
+    ipam:
+      config:
+        - subnet: 172.28.0.0/16

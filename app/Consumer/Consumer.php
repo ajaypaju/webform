@@ -22,9 +22,15 @@ final class Consumer
 
     private const BACKOFF_CAP_MS = 30_000;
 
+    private const LAG_SAMPLE_SECONDS = 5;
+
     private bool $stopping = false;
 
     private Closure $sleep;
+
+    private int $lagSampledAt = 0;
+
+    private int $lastLag = -1;
 
     /**
      * @param  Closure(int): void|null  $sleep  ms to wait between retries; injectable for tests
@@ -200,9 +206,15 @@ final class Consumer
         return $messages;
     }
 
-    /** Messages still on the topic behind this consumer, over the partitions this batch touched. */
+    /** Messages still on the topic behind this consumer, over the partitions this batch touched; sampled, not per batch. */
     private function lag(array $messages): int
     {
+        // WHY: each watermark query is a broker round trip per partition; per batch it cost more than the insert.
+        if (time() - $this->lagSampledAt < self::LAG_SAMPLE_SECONDS) {
+            return $this->lastLag;
+        }
+
+        $this->lagSampledAt = time();
         $partitions = array_unique(array_map(fn (Message $m) => $m->partition, $messages));
         $lag = 0;
 
@@ -217,10 +229,10 @@ final class Consumer
         } catch (\Throwable $e) {
             Log::debug('consumer: lag unavailable', ['error' => $e->getMessage()]);
 
-            return -1;
+            return $this->lastLag = -1;
         }
 
-        return $lag;
+        return $this->lastLag = $lag;
     }
 
     private static function isIntegrityViolation(QueryException $e): bool
