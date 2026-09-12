@@ -13,7 +13,7 @@
     {{-- I9: a data block is not executed, so the CSP allows it; @json hex-escapes < > & ' " so nothing can close it. --}}
     <script type="application/json" id="form-definition">@json($version['definition'])</script>
 
-    <form method="post" action="/v1/forms/{{ $formId }}/versions/{{ $version['id'] }}/submissions" novalidate
+    <form method="post" action="/v1/forms/{{ $formId }}/submissions" novalidate
           data-form-id="{{ $formId }}" data-version-id="{{ $version['id'] }}" data-render-token="{{ $token }}">
         @foreach ($fields as $field)
             @php($id = $field['id'])
@@ -52,8 +52,12 @@
                 <p class="error" data-error-for="{{ $id }}" aria-live="polite"></p>
             </fieldset>
         @endforeach
+        {{-- I13: honeypot; hidden from people by CSS, filled by bots. --}}
+        <p class="hp" aria-hidden="true"><label>Leave this empty <input type="text" name="honeypot" tabindex="-1" autocomplete="off"></label></p>
         <button type="submit">Submit</button>
+        <p class="status" data-status aria-live="polite"></p>
     </form>
+    <div data-thanks hidden><p>Thank you — your response has been received.</p></div>
 </main>
 </body>
 </html>

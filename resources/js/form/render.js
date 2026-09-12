@@ -1,7 +1,9 @@
-// Enhances the server-rendered form: live visibility (I6), inline error display, typed value collection.
-// DOM writes go through textContent / setAttribute / hidden only — never markup from strings (I9).
+// Enhances the server-rendered form: live visibility (I6), inline errors, typed value collection, submit with
+// retry and a persisted pending submission (I2). DOM writes go through textContent / setAttribute / hidden only —
+// never markup from strings (I9).
 import { validate, visibleIds, normalize } from './validate.js';
 import { patternMatcher } from './patterns.js';
+import { uuidv7, submitWithRetry } from './submit.js';
 
 const MESSAGES = {
   required: 'This field is required.',
@@ -19,6 +21,10 @@ const MESSAGES = {
   date: 'Enter a valid date (YYYY-MM-DD).',
   unknown_field: 'Unexpected field.',
 };
+
+// WHY: a resumed submission carries a fresh render token; sending it before the minimum fill time would be
+// treated as a bot.
+const RESUME_DELAY_MS = 2500;
 
 export function readDefinition(root) {
   return JSON.parse(root.querySelector('#form-definition').textContent);
@@ -58,6 +64,25 @@ function read(form, field) {
   }
 }
 
+function write(form, field, value) {
+  const el = form.elements.namedItem(field.id);
+  if (!el || value === undefined) return;
+
+  switch (field.type) {
+    case 'checkbox':
+      el.checked = value === true;
+      break;
+    case 'radio':
+      for (const radio of form.querySelectorAll(`input[name="${CSS.escape(field.id)}"]`)) radio.checked = radio.value === value;
+      break;
+    case 'multiselect':
+      for (const option of el.options) option.selected = Array.isArray(value) && value.includes(option.value);
+      break;
+    default:
+      el.value = String(value);
+  }
+}
+
 export function applyVisibility(form, fields, input) {
   const values = {};
   for (const field of fields) values[field.id] = normalize(input[field.id]);
@@ -76,13 +101,82 @@ export function showErrors(form, errors) {
   }
 }
 
+const storageKey = (formId) => `webform:pending:${formId}`;
+
+function loadPending(formId) {
+  try {
+    return JSON.parse(localStorage.getItem(storageKey(formId))) ?? null;
+  } catch {
+    return null;
+  }
+}
+
+function savePending(formId, pending) {
+  try {
+    localStorage.setItem(storageKey(formId), JSON.stringify(pending));
+  } catch {
+    // Private mode or full storage: the retry loop still runs for this page load.
+  }
+}
+
+function clearPending(formId) {
+  try {
+    localStorage.removeItem(storageKey(formId));
+  } catch {
+    // ignore
+  }
+}
+
 export function enhance(form) {
   const { fields } = readDefinition(document);
+  const formId = form.dataset.formId;
+  const status = document.querySelector('[data-status]');
+  const say = (text) => { if (status) status.textContent = text; };
 
   const refresh = () => applyVisibility(form, fields, collect(form, fields));
   form.addEventListener('input', refresh);
   form.addEventListener('change', refresh);
   refresh();
+
+  // WHY: one id per submission attempt series, reused on every retry, so the server can collapse duplicates (I2).
+  let pending = loadPending(formId);
+
+  async function send(input) {
+    const body = {
+      submission_id: pending.submission_id,
+      form_version_id: form.dataset.versionId,
+      render_token: form.dataset.renderToken,
+      data: input,
+      honeypot: form.elements.namedItem('honeypot')?.value ?? '',
+    };
+    savePending(formId, { submission_id: pending.submission_id, data: input });
+    form.querySelector('button[type="submit"]').disabled = true;
+
+    const result = await submitWithRetry(form.action, body, {
+      onRetry: ({ attempt, delay }) => say(`Could not reach the server (attempt ${attempt}); retrying in ${Math.round(delay / 1000)}s. Your answers are kept on this device.`),
+    });
+
+    form.querySelector('button[type="submit"]').disabled = false;
+
+    switch (result.status) {
+      case 202:
+        clearPending(formId);
+        pending = null;
+        form.hidden = true;
+        document.querySelector('[data-thanks]').hidden = false;
+        say('');
+        return;
+      case 422:
+        showErrors(form, Array.isArray(result.body?.errors) ? {} : result.body?.errors ?? {});
+        say(Array.isArray(result.body?.errors) ? 'The submission could not be read. Please reload the page and try again.' : 'Please correct the highlighted fields.');
+        return;
+      case 409:
+        say('This form has been updated since the page was opened. Reload to get the latest version; your answers are kept on this device.');
+        return;
+      default:
+        say('The server is unavailable right now. Your answers are kept on this device; reload this page later to send them.');
+    }
+  }
 
   form.addEventListener('submit', async (event) => {
     event.preventDefault();
@@ -92,6 +186,16 @@ export function enhance(form) {
     // WHY: regexes run in a worker with a time budget; the main thread never blocks on a customer's pattern.
     const result = validate({ fields }, input, await patternMatcher(fields, values));
     showErrors(form, result.errors);
-    form.dispatchEvent(new CustomEvent('form:validated', { detail: result }));
+    if (!result.valid) return;
+
+    pending ??= { submission_id: uuidv7() };
+    await send(input);
   });
+
+  if (pending) {
+    for (const field of fields) write(form, field, pending.data?.[field.id]);
+    refresh();
+    say('Sending your earlier answers…');
+    setTimeout(() => form.requestSubmit(), RESUME_DELAY_MS);
+  }
 }

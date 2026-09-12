@@ -18,7 +18,7 @@ FORM=$(curl -sf "$API/v1/forms" -H "Authorization: Bearer $KEY" -H 'Content-Type
   {"id": "addons",   "type": "multiselect", "label": "Add-ons",         "required": false, "options": [{"value": "a", "label": "Analytics"}, {"value": "b", "label": "Backups"}, {"value": "c", "label": "Custom domain"}], "rules": {"max_selected": 2},
                      "visible_if": {"field": "plan", "op": "eq", "value": "pro"}},
   {"id": "billing",  "type": "radio",       "label": "Billing period",  "required": true,  "options": [{"value": "monthly", "label": "Monthly"}, {"value": "yearly", "label": "Yearly"}],
-                     "visible_if": {"field": "addons", "op": "in", "value": ["a", "b"]}},
+                     "visible_if": {"field": "plan", "op": "in", "value": ["pro"]}},
   {"id": "start",    "type": "date",        "label": "Start date",      "required": false, "rules": {"min": "2026-01-01"}},
   {"id": "consent",  "type": "checkbox",    "label": "I agree to the terms", "required": true}
 ]}}

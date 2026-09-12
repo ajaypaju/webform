@@ -9,3 +9,6 @@ input[type="text"], input[type="email"], input[type="number"], input[type="date"
 .required::after { content: " *"; color: #b00020; }
 button { padding: .6rem 1.2rem; font: inherit; border: 0; border-radius: 4px; background: #1a1a1a; color: #fff; }
 [hidden] { display: none !important; }
+.status { margin-top: .75rem; color: #555; }
+.status:empty { display: none; }
+.hp { position: absolute; left: -10000px; top: auto; width: 1px; height: 1px; overflow: hidden; }
