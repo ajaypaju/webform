@@ -2,6 +2,8 @@
 
 use App\Http\Controllers\Dashboard\BuilderController;
 use App\Http\Controllers\Dashboard\LoginController;
+use App\Http\Controllers\Dashboard\SubmissionController;
+use App\Http\Controllers\SubmissionController as ApiSubmissionController;
 use App\Http\Middleware\PublicHeaders;
 use Illuminate\Support\Facades\Route;
 
@@ -19,5 +21,9 @@ Route::middleware(PublicHeaders::class.":'none'")->group(function () {
         Route::get('forms/{form}', [BuilderController::class, 'show'])->whereUuid('form')->name('dashboard.forms.show');
         Route::put('forms/{form}/draft', [BuilderController::class, 'saveDraft'])->whereUuid('form');
         Route::post('forms/{form}/publish', [BuilderController::class, 'publish'])->whereUuid('form');
+        Route::get('forms/{form}/submissions', [SubmissionController::class, 'index'])->whereUuid('form')->name('dashboard.submissions');
+        // WHY: the export is the API's own action behind the session instead of the key — one CsvExport, one set of filters.
+        Route::get('forms/{form}/submissions/export.csv', [ApiSubmissionController::class, 'export'])->whereUuid('form')->name('dashboard.submissions.export');
+        Route::get('forms/{form}/submissions/{submission}', [SubmissionController::class, 'show'])->whereUuid('form')->whereUuid('submission')->name('dashboard.submissions.show');
     });
 });

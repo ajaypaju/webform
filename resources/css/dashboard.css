@@ -30,3 +30,17 @@ button.danger { background: #b00020; }
 .errors:empty { display: none; }
 .add { display: flex; gap: .5rem; align-items: center; }
 .preview form { border: 1px dashed #aaa; border-radius: 6px; padding: 1rem; }
+a.button { display: inline-block; padding: .5rem 1rem; background: #0b5fff; color: #fff; border-radius: 4px; text-decoration: none; }
+.filters { display: flex; flex-wrap: wrap; gap: .75rem; align-items: end; margin: 1rem 0; }
+.filters label { display: flex; flex-direction: column; gap: .25rem; font-size: .9rem; }
+.scroll { overflow-x: auto; }
+.submissions td, .submissions th { white-space: nowrap; max-width: 24rem; overflow: hidden; text-overflow: ellipsis; }
+.submissions tr { position: relative; }
+.submissions tbody tr:hover { background: #f3f3f3; }
+.row-link::after { content: ""; position: absolute; inset: 0; }
+.submissions td.absent { color: #999; font-style: italic; background: repeating-linear-gradient(45deg, #fafafa, #fafafa 4px, #f0f0f0 4px, #f0f0f0 8px); }
+.submissions td.empty { background: #fff; }
+.pager { display: flex; gap: 1.5rem; align-items: center; margin: 1rem 0; }
+.detail { display: grid; grid-template-columns: 14rem 1fr; gap: .4rem 1rem; }
+.detail dt { color: #333; }
+.detail dd { margin: 0; word-break: break-word; }

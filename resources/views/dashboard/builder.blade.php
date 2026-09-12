@@ -9,6 +9,7 @@
             <div>
                 <h1>{{ $form->name }}</h1>
                 <p class="muted">
+                    <a href="{{ route('dashboard.submissions', $form) }}">submissions</a> ·
                     <span data-status>{{ $form->status }}</span>
                     @if ($form->currentVersion)
                         · v<span data-version-no>{{ $form->currentVersion->version_no }}</span>

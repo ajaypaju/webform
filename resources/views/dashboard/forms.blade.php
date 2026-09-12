@@ -10,7 +10,7 @@
         <button type="submit">Create</button>
     </form>
     <table>
-        <thead><tr><th>Name</th><th>Status</th><th>Version</th><th>Updated</th></tr></thead>
+        <thead><tr><th>Name</th><th>Status</th><th>Version</th><th>Updated</th><th></th></tr></thead>
         <tbody>
         @forelse ($forms as $form)
             <tr>
@@ -18,9 +18,10 @@
                 <td>{{ $form->status }}</td>
                 <td>{{ $form->currentVersion?->version_no ?? '—' }}</td>
                 <td>{{ $form->updated_at->toDateTimeString() }}</td>
+                <td><a href="{{ route('dashboard.submissions', $form) }}">submissions</a></td>
             </tr>
         @empty
-            <tr><td colspan="4" class="muted">No forms yet.</td></tr>
+            <tr><td colspan="5" class="muted">No forms yet.</td></tr>
         @endforelse
         </tbody>
     </table>
