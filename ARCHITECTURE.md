@@ -33,7 +33,7 @@ Derived, line by line:
 
 Ingest and the broker scale horizontally and are sized for the spike; PostgreSQL is sized for the consumer drain rate, and the topic is the buffer between the two. With ingress rate `R` for duration `T`, steady rate `S`, and consumer drain rate `D` (measured: ≥ 24,000 rows/s on the dev laptop, `make drain`; the consumer batches 500 rows per transaction, so `D` is bounded by PostgreSQL write throughput and the poll/commit loop, not by broker reads):
 
-- ingest instances = ⌈R / per-instance rate⌉ — per-instance ack capacity is not measured: on one form the product's own per-form bucket (2,000 burst, 200/s sustained) is the binding limit, so measuring it needs load spread over many tenants
+- ingest instances = ⌈R / per-instance rate⌉ — per-instance ack capacity is not measured: at the time of the runs the per-form bucket (then 2,000 burst, 200/s sustained; now 5,000 / 2,000 as an abuse ceiling) was the binding limit, so measuring it needs load spread over many tenants and a re-run
 - backlog = (R − D) × T while both run; with `D` ≥ 2× the assumed 10,000/s spike, a live consumer builds no backlog at all — the topic is a buffer for *outages*, not for throughput
 - backlog after a consumer outage of `X` seconds = R × X; drain time = R × X / (D − S)
 - requirement: topic retention ≫ drain time, and `D > S` with margin or the backlog never clears
@@ -53,14 +53,14 @@ Hardware: one MacBook (Apple M4, 16 GB), Docker Desktop VM with 10 CPUs / 8 GB, 
 | Run (command) | Sent | Acked (202) | Refused | Ack latency p50 / p95 / p99 / max (incl. retries) | Reconcile |
 |---|---|---|---|---|---|
 | Within limits: `make load ARGS="--spike 200 --spike-secs 120 --ramp 5 --post 10"` | 25,500 | 25,500 | 0 | 9 / 15 / 21 / 105 ms | 25,500 stored, 0 missing, 0 phantoms, 0 duplicates |
-| Default spike: `make load` (2,000/s × 60 s) | 140,691 | 82,215 | 58,476 (all 429) | 2,278 / 8,954 / 9,278 / 10,325 ms | 82,215 stored, 0 / 0 / 0 |
+| Default spike: `make load` (2,000/s × 60 s), under the then per-form bucket of 2,000 / 200/s | 140,691 | 82,215 | 58,476 (all 429) | 2,278 / 8,954 / 9,278 / 10,325 ms | 82,215 stored, 0 / 0 / 0 |
 | Chaos: `make chaos` (300/s × 150 s; consumer, Postgres, Redpanda stopped in turn; consumer process `kill -9`) | 48,500 | 33,318 | 15,182 (429: 13,640; 503: 764; network: 778) | 1,238 / 14,665 / 30,133 / 38,411 ms | 35,007 stored, 0 missing, 0 phantoms, 0 duplicates; 1,689 refused-but-stored |
 | Drain: `make drain N=60000` | 60,000 produced at 7,170/s (each produce+flush+report) | — | — | — | 60,000 rows in 2.5 s → D ≥ 24,000 rows/s |
 
 What the rows mean:
 
 - **Within limits** is the clean number: 200/s sustained for two minutes, every request acked on the first attempt, p99 21 ms end to end (validation, produce, flush, delivery report), generator queueing p99 2 ms.
-- **Default spike** is the product refusing by design: the per-form bucket admits 2,000 then 200/s, so a 2,000/s spike on one form is 532,326 × 429 responses and 58,476 ids that gave up after 6 attempts. The ack latency there is retry time, not server time. The generator itself saturated (2,048 workers held in retry sleeps; queueing p50 120 s) and says so in its report — the achieved rate is the limiter's, not the laptop's.
+- **Default spike** is the product refusing by design: the per-form bucket at the time admitted 2,000 then 200/s, so a 2,000/s spike on one form was 532,326 × 429 responses and 58,476 ids that gave up after 6 attempts. The defaults were raised afterwards to 5,000 / 2,000/s (`config/ingest.php`: an abuse ceiling, not a traffic shaper) and this run was not repeated. The ack latency there is retry time, not server time. The generator itself saturated (2,048 workers held in retry sleeps; queueing p50 120 s) and says so in its report — the achieved rate is the limiter's, not the laptop's.
 - **Chaos** is the claim under fault: 0 acked ids missing across a consumer stop, a Postgres stop, a Redpanda stop and a process crash. The 1,689 "refused but stored" ids are the ambiguous-ack case from §4 — the client saw a 503 or a network error after the broker had in fact persisted the record — stored exactly once because ids are reused and `submission_ids` dedupes. Recovery after the crash took ≈ 45 s before the restarted consumer got its partitions back: Kafka's `session.timeout.ms` for the dead member, not a design property of this system.
 - **Drain**: neither the consumer nor PostgreSQL came near saturation (each 500-row batch commits in 11–23 ms); the 2.5 s includes consumer start-up. What *did* saturate during the spike and chaos runs was the load generator, and what bound the acked rate was the per-form bucket — both reported by the tooling rather than hidden.
 
@@ -162,7 +162,7 @@ The consumer (`submissions:consume`, role `webform_writer`) is the only writer o
 
 Mechanism: no database write on the request path; the only synchronous dependency is the broker ack. Octane keeps the framework booted, a per-worker `Producer` singleton keeps broker connections open, and the message key is the submission id so a hot form spreads across all 12 partitions (I14). Per-worker singletons are resolved at worker boot through Octane's `warm` list: a singleton first resolved inside a request belongs to that request's sandbox container and does not survive it — found on the running stack when the breaker failed to open, not by the test suite. Backpressure is explicit: no ack within `message.timeout.ms` means 503 + `Retry-After`, never a queued-in-memory 202.
 A per-worker circuit breaker ([app/Ingest/SubmissionProducer.php](app/Ingest/SubmissionProducer.php)) opens after N consecutive delivery failures and answers 503 without a broker round-trip for a cooldown, then lets one request probe — otherwise a burst during a broker outage pins every worker on `message.timeout.ms`. A fatal librdkafka error recreates the producer; an idempotent producer stays broken otherwise.
-Evidence: [tests/Feature/Kafka/ProducerTest.php](tests/Feature/Kafka/ProducerTest.php); breaker open/probe/close, re-open on a failed probe, fatal recreate, and the HTTP path returning 503 never 202 while the broker is down — [tests/Feature/Ingest/SubmissionProducerTest.php](tests/Feature/Ingest/SubmissionProducerTest.php), [SubmissionsTest.php](tests/Feature/Ingest/SubmissionsTest.php). Measured (§2, "Measured results"): 200/s sustained for 120 s on one form, 25,500/25,500 acked, p50 9 ms, p99 21 ms end to end; a 2,000/s spike on one form is refused by the per-form bucket as designed (532,326 × 429), and the consumer drains ≥ 24,000 rows/s.
+Evidence: [tests/Feature/Kafka/ProducerTest.php](tests/Feature/Kafka/ProducerTest.php); breaker open/probe/close, re-open on a failed probe, fatal recreate, and the HTTP path returning 503 never 202 while the broker is down — [tests/Feature/Ingest/SubmissionProducerTest.php](tests/Feature/Ingest/SubmissionProducerTest.php), [SubmissionsTest.php](tests/Feature/Ingest/SubmissionsTest.php). Measured (§2, "Measured results"): 200/s sustained for 120 s on one form, 25,500/25,500 acked, p50 9 ms, p99 21 ms end to end; a 2,000/s spike on one form was refused by the per-form bucket of the time (532,326 × 429; defaults since raised, not re-run), and the consumer drains ≥ 24,000 rows/s.
 
 ### 5.2 No lost submissions
 
@@ -288,32 +288,55 @@ A definition is validated twice: `resources/js/form/validate.js` in the browser 
 
 ## 11. Built vs designed
 
-| Area | Status | Where |
+"Built" means the code and the tests that exercise it are in this repository today; nothing else qualifies.
+
+### Built
+
+| Area | Code | Tests |
 |---|---|---|
-| Runtime: Octane/FrankenPHP, PostgreSQL, Redis, Redpanda, `APP_ROLE` split, healthchecks, `make up` | Built | `Dockerfile`, `compose.yaml`, `bootstrap/app.php` |
-| Redpanda write caching forced off, topics via init job | Built | `compose.yaml` |
-| Producer with ack-after-durability (I1) | Built | `app/Kafka/`, `tests/Feature/Kafka/` |
-| Definition validation incl. regex portability (I5, I6, I8) | Built | `app/Forms/DefinitionRules.php`, `conformance/` |
-| Submission validation, pure PHP (I6, I7, I8) | Built | `app/Forms/`, `conformance/submissions` |
-| Cross-engine regex compile check | Built | `tests/js/` |
-| Schema, monthly partitions + DEFAULT, immutability trigger, composite version FK | Built | `database/migrations/`, `tests/Feature/Schema/` |
-| Four least-privilege roles, RLS policies, `resolve_api_key`, runtime role check, `migrate` service | Built | `database/migrations/…000003…`, `app/Database/RuntimeRole.php`, `docker/postgres/init.sh`, `compose.yaml` |
-| Public definition JSON (`immutable`), current-version pointer, version store (I12), form page with CSP and JSON data block (I9), render token issue/verify (I13) | Built | `app/Ingest/`, `app/Http/Controllers/Public/`, `resources/views/form/`, `tests/Feature/Ingest/` |
-| `POST /v1/forms/{form}/submissions`: rate limits (I13), token + honeypot decoys (I13), pinning window (I3), validation (I6, I7), envelope with `received_at` and pseudonymous meta, produce + flush + report (I1, I14), circuit breaker | Built | `app/Http/Controllers/Public/SubmissionController.php`, `app/Ingest/`, `tests/Feature/Ingest/SubmissionsTest.php` |
-| Consumer: batches, one transaction with `submission_ids` dedupe, offsets after commit, DLQ, backoff, SIGTERM, daily partition upkeep via a definer function (I2) | Built | `app/Consumer/`, `app/Console/Commands/ConsumeSubmissions.php`, `tests/Feature/Consumer/`, `tests/Feature/Ingest/EndToEndTest.php` |
-| Control-plane API: API keys (`tenants:create`), scoped tenant binding + request transaction (I11), forms CRUD, drafts with advisory validation and size caps, publish with `PublishCompat` (I5), versions | Built | `app/Http/`, `app/Tenancy/`, `app/Forms/PublishCompat.php`, `conformance/publish/`, `tests/Feature/Api/` |
-| `validate.js` (pure port) with the full conformance parity run; `render.js` (visibility, errors) | Built | `resources/js/form/`, `tests/js/validate.test.mjs` |
-| Client-side submit: UUIDv7 reused on retry, backoff + jitter with Retry-After, pending submission in localStorage restored on load, 409/422 handling (I2) | Built | `resources/js/form/submit.js`, `render.js`, `tests/js/submit.test.mjs` |
-| Submission list (keyset, filters, jsonb containment) and streaming CSV export with version-union columns (I5, I10, I15) | Built | `app/Submissions/`, `app/Http/Controllers/SubmissionController.php`, `tests/Feature/Api/Submissions*Test.php` |
-| Load generator (arrival-rate schedule, same-id retries, JSONL), reconciliation (acked = stored, no phantoms, no duplicates), chaos script, drain measurement | Built | `loadtest/`, `compose.load.yaml`, `make load / chaos / drain` |
-| CDN, archival, ClickHouse via CDC | Designed | sections 3, 10 |
-| Degraded-dependency fallbacks (I12) | Designed | section 9 |
+| Runtime: Octane on FrankenPHP, PostgreSQL 16, Redis 7, Redpanda (write caching forced off, topics via init job), `APP_ROLE` route split, healthchecks, `make up` from a fresh clone | `Dockerfile`, `compose.yaml`, `bootstrap/app.php`, `docker/` | `tests/Feature/HealthTest.php` |
+| Producer with ack-after-durability: produce, flush, per-message delivery report (I1, I14) | `app/Kafka/` | `tests/Feature/Kafka/ProducerTest.php` |
+| Definition validation with regex portability rules (I5, I6, I8) | `app/Forms/DefinitionRules.php`, `app/Forms/SafePattern.php` | `tests/Unit/Conformance/DefinitionsTest.php`, `tests/Unit/Conformance/PortabilityTest.php`, `conformance/definitions`, `conformance/patterns` |
+| Submission validation, pure PHP: visibility, strict types, ReDoS containment (I6, I7, I8) | `app/Forms/` | `tests/Unit/Conformance/SubmissionsTest.php`, `conformance/submissions` |
+| Publish compatibility: a field id keeps its type across all versions (I5) | `app/Forms/PublishCompat.php` | `tests/Unit/Conformance/PublishTest.php`, `conformance/publish` |
+| Schema: monthly partitions + DEFAULT, composite version FK, immutability trigger, definer function for partition upkeep (I3, I4) | `database/migrations/` | `tests/Feature/Schema/SubmissionsTableTest.php`, `tests/Feature/Schema/ImmutabilityTest.php`, `tests/Feature/Schema/WriterRoleTest.php` |
+| Four least-privilege roles, row-level security policies, `resolve_api_key`, runtime role check, `migrate` service (I11) | `database/migrations/`, `app/Database/RuntimeRole.php`, `docker/postgres/init.sh` | `tests/Feature/Schema/ApiRoleTest.php`, `tests/Feature/Schema/IngestRoleTest.php`, `tests/Feature/Schema/WriterRoleTest.php`, `tests/Feature/Schema/RuntimeRoleTest.php` |
+| Control plane: API keys, scoped tenant binding + per-request transaction, forms CRUD, drafts with advisory validation and size caps, publish, versions (I11) | `app/Http/Middleware/AuthenticateApiKey.php`, `app/Http/Controllers/FormController.php`, `app/Tenancy/`, `app/Models/` | `tests/Feature/Api/AuthTest.php`, `tests/Feature/Api/FormsTest.php`, `tests/Feature/Console/TenantsCreateTest.php` |
+| Submission list (keyset, filters, jsonb containment) and streaming CSV export with version-union columns (I5, I10, I15) | `app/Submissions/`, `app/Http/Controllers/SubmissionController.php` | `tests/Feature/Api/SubmissionsListTest.php`, `tests/Feature/Api/SubmissionsExportTest.php` |
+| Version store: worker LRU → Redis → PostgreSQL, stale form state, publish pre-warms; public definition JSON (`immutable`) and current-version pointer (I12) | `app/Ingest/VersionStore.php`, `app/Http/Controllers/Public/VersionController.php` | `tests/Feature/Ingest/VersionEndpointsTest.php` |
+| Form page: server-rendered, JSON data block, strict CSP, render token, same-origin Vite build (I9, I13) | `resources/views/form/page.blade.php`, `app/Ingest/RenderToken.php`, `app/Http/Middleware/PublicHeaders.php` | `tests/Feature/Ingest/PageTest.php`, `tests/Unit/Ingest/RenderTokenTest.php` |
+| `POST /v1/forms/{form}/submissions`: rate limits with per-worker fallback, honeypot and token decoys with an audit log line, version pinning window, validation, envelope with `received_at` and pseudonymous meta, produce, circuit breaker, trusted proxies (I1, I3, I7, I12, I13, I14) | `app/Http/Controllers/Public/SubmissionController.php`, `app/Ingest/RateLimiter.php`, `app/Ingest/SubmissionProducer.php` | `tests/Feature/Ingest/SubmissionsTest.php`, `tests/Feature/Ingest/RateLimiterTest.php`, `tests/Feature/Ingest/SubmissionProducerTest.php`, `tests/Feature/Ingest/TrustedProxiesTest.php` |
+| Consumer: batches, one transaction with `submission_ids` dedupe, offsets after commit, DLQ with reason headers, backoff through outages, SIGTERM, tini + restart (I2) | `app/Consumer/`, `app/Console/Commands/ConsumeSubmissions.php` | `tests/Feature/Consumer/ConsumerTest.php`, `tests/Feature/Consumer/BatchWriterTest.php`, `tests/Feature/Ingest/EndToEndTest.php` |
+| Client: `validate.js` (pure port, full conformance parity), `render.js`, pattern checks in a Web Worker, `submit.js` with UUIDv7 reuse, backoff, `Retry-After`, localStorage persistence (I2, I8) | `resources/js/form/` | `tests/js/validate.test.mjs`, `tests/js/patterns.test.mjs`, `tests/js/submit.test.mjs` |
+| Load generator, reconciliation (acked = stored, no phantoms, no duplicates), chaos script, drain measurement | `loadtest/`, `compose.load.yaml` | the runs in §2: `make load`, `make chaos`, `make drain` |
+
+### Designed, not built
+
+- **CDN** in front of `ingest` for the page shell and `immutable` definition JSON (a cacheable shell plus a token endpoint; today the page is `no-store`).
+- **ClickHouse via CDC** for range and aggregate queries over `data`; PostgreSQL stays the system of record.
+- **Object storage** as the PostgreSQL-independent copy of published versions (Redis is the slice's stand-in) and as the home of archived partitions.
+- **Multi-region**: not designed; single region is load-bearing for `min.insync.replicas` and RLS latency.
+- **Per-tenant sharding**: dedicated topics and consumer groups for large tenants; Kafka client quotas.
+- **Webhooks** on submission stored.
+- **GDPR deletion**: erasing a submission or a tenant across partitions, topic retention, the DLQ and exports.
+- **A visual form builder**: the control plane is API-only.
+- **Async exports to S3**: the CSV export is a synchronous stream; long exports would move to a job with a signed download URL.
+- **Browser automation tests**: `render.js`, `patterns.js` and the submit flow are unit-tested and exercised with curl, never driven in a real browser.
+
+### Known limits
+
+- **RLS vs GIN.** The `webform_api` role cannot use the GIN index: jsonb `@>` is not `LEAKPROOF`, so a filtered list is a btree walk over the form's rows with the containment as a post-filter (§6).
+- **No per-instance ingest capacity number.** The per-form bucket bound every run; measuring ingest itself needs load spread over many tenants.
+- **Measurements are one laptop, single node, RF=1**, generator in the same VM (§2).
+- **No dashboard UI.** Tenants get the API and the CSV export.
+- **Crash recovery ≈ 45 s** for the consumer: Kafka's `session.timeout.ms` for the dead member before partitions are reassigned.
+- **`TRUSTED_PROXIES` must be set per deployment**; unset, every visitor behind a load balancer shares one per-IP bucket.
+- **JS has no regex backtrack limit**; mitigated by the Web Worker budget, not removed.
 
 ## 12. Open questions and next steps
 
-1. Build order: schema, then ingest endpoint + consumer (closes the I1/I2 loop), then control plane, then form page. Reconciliation (`burst.mjs` acked ids vs rows) is the acceptance test.
-2. Consumer batch shape: one transaction per poll batch vs per N records — replay size on crash vs transaction overhead. Measured locally: 500-row batches commit in 11–23 ms (`make drain`), so the batch size is not the bottleneck; not re-tuned.
-3. `Producer` after a fatal idempotent-producer error: recreate the client, or rely on Octane `--max-requests` recycling.
-4. 24 h superseded-version grace is an assumption; it bounds how long a stale tab can still submit.
-5. Replace `\s` in accepted patterns with an explicit class to close the JS/PCRE gap, or leave it documented.
-6. Multi-region is not designed; single region is load-bearing for `min.insync.replicas` and RLS latency.
+1. Consumer batch shape: one transaction per poll batch vs per N records — replay size on crash vs transaction overhead. Measured locally: 500-row batches commit in 11–23 ms (`make drain`), so the batch size is not the bottleneck; not re-tuned.
+2. Filtered lists under RLS: a `SECURITY DEFINER` read function that applies the tenant predicate itself and is allowed the GIN plan, or build the ClickHouse path first (§6).
+3. 24 h superseded-version grace is an assumption; it bounds how long a stale tab can still submit.
+4. Replace `\s` in accepted patterns with an explicit class to close the JS/PCRE gap, or leave it documented.
+5. Multi-region is not designed; single region is load-bearing for `min.insync.replicas` and RLS latency.
