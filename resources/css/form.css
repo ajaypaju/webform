@@ -1,14 +1,144 @@
-:root { font-family: system-ui, sans-serif; line-height: 1.4; color: #1a1a1a; background: #fafafa; }
-main { max-width: 40rem; margin: 2rem auto; padding: 0 1rem; }
-fieldset { border: 0; padding: 0; margin: 0 0 1.25rem; }
-label, legend { display: block; font-weight: 600; margin-bottom: .25rem; }
-input[type="text"], input[type="email"], input[type="number"], input[type="date"], select { width: 100%; padding: .5rem; border: 1px solid #999; border-radius: 4px; font: inherit; }
-.help { margin: .25rem 0 0; color: #555; font-size: .9rem; }
-.error { margin: .25rem 0 0; color: #b00020; font-size: .9rem; min-height: 1.2em; }
+/* Design tokens. form.css is loaded by the public page and by the dashboard (which adds dashboard.css), so the
+   palette, spacing and type scale are defined once here. System font stack only; nothing is fetched. */
+:root {
+  --font: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+  --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  --fs-sm: .875rem;
+  --fs-base: 1rem;
+  --fs-lg: 1.25rem;
+  --fs-xl: 1.625rem;
+
+  --sp-1: .25rem;
+  --sp-2: .5rem;
+  --sp-3: .75rem;
+  --sp-4: 1rem;
+  --sp-6: 1.5rem;
+  --sp-8: 2rem;
+
+  --radius-sm: 4px;
+  --radius: 8px;
+
+  /* neutral ramp */
+  --bg: #fafafa;
+  --surface: #ffffff;
+  --surface-2: #f3f3f3;
+  --line: #d9d9d9;
+  --line-strong: #8a8a8a;
+  --ink: #1a1a1a;
+  --ink-muted: #595959;
+
+  /* one accent, semantic error / success, one warning surface */
+  --accent: #0b5fff;
+  --accent-ink: #ffffff;
+  --accent-soft: #e8f0ff;
+  --error: #b00020;
+  --error-soft: #fbeaec;
+  --success: #1b6e3a;
+  --success-soft: #eaf5ee;
+  --warn-soft: #fff6d6;
+  --warn-line: #e6c65a;
+
+  --focus: var(--accent);
+  --motion: 120ms;
+}
+
+:root { font-family: var(--font); font-size: var(--fs-base); line-height: 1.45; color: var(--ink); background: var(--bg); }
+body { margin: 0; }
+main { max-width: 40rem; margin: var(--sp-8) auto; padding: 0 var(--sp-4); }
+h1 { font-size: var(--fs-xl); line-height: 1.2; margin: 0 0 var(--sp-4); }
+h2 { font-size: var(--fs-lg); line-height: 1.25; margin: var(--sp-6) 0 var(--sp-3); }
+a { color: var(--accent); }
+code { font-family: var(--mono); font-size: .9em; }
+
+/* Focus is always visible, on everything that can take it; only the ring's placement differs per control. */
+:where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+/* ---- fields ---------------------------------------------------------------------------------------------- */
+fieldset { border: 0; padding: 0; margin: 0 0 var(--sp-6); min-width: 0; }
+label, legend { display: block; font-weight: 600; margin-bottom: var(--sp-1); }
+legend { padding: 0; }
+/* option rows (radio, checkbox) read as choices, not as field headings */
+label:has(> input[type="radio"]), label:has(> input[type="checkbox"]) {
+  display: flex; align-items: center; gap: var(--sp-2); font-weight: 400; margin: var(--sp-1) 0; cursor: pointer;
+}
+input[type="radio"], input[type="checkbox"] { width: 1.1rem; height: 1.1rem; margin: 0; accent-color: var(--accent); flex: none; }
+
+input:not([type]), input[type="text"], input[type="email"], input[type="number"], input[type="date"],
+input[type="datetime-local"], input[type="password"], input[type="search"], select, textarea {
+  width: 100%;
+  box-sizing: border-box;
+  padding: var(--sp-2) var(--sp-3);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  min-height: 2.5rem;
+}
+select[multiple] { min-height: 6rem; }
+input:focus-visible, select:focus-visible, textarea:focus-visible {
+  outline-offset: 0;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.help { margin: var(--sp-1) 0 0; color: var(--ink-muted); font-size: var(--fs-sm); }
+.required::after { content: " *"; color: var(--error); }
+
+/* an error belongs to its field: the message hangs off the control and the whole field is marked */
+.error { margin: var(--sp-1) 0 0; color: var(--error); font-size: var(--fs-sm); min-height: 1.2em; font-weight: 500; }
 .error:empty { display: none; }
-.required::after { content: " *"; color: #b00020; }
-button { padding: .6rem 1.2rem; font: inherit; border: 0; border-radius: 4px; background: #1a1a1a; color: #fff; }
+.error:not(:empty)::before { content: "⚠ "; }
+fieldset:has(> .error:not(:empty)) { padding-left: var(--sp-3); border-left: 3px solid var(--error); }
+fieldset:has(> .error:not(:empty)) :is(input, select, textarea):not([type="radio"], [type="checkbox"]) { border-color: var(--error); }
+
+/* ---- buttons --------------------------------------------------------------------------------------------- */
+button {
+  padding: var(--sp-2) var(--sp-6);
+  min-height: 2.5rem;
+  font: inherit;
+  font-weight: 600;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: var(--ink);
+  color: var(--accent-ink);
+  cursor: pointer;
+}
+button:hover:not(:disabled) { filter: brightness(1.15); }
+button:disabled { background: var(--ink-muted); cursor: progress; }
+/* the public form's submit while a request is in flight */
+form:has(> button[type="submit"]:disabled) button[type="submit"]::after { content: "…"; }
+form:has(> button[type="submit"]:disabled) :is(fieldset) { opacity: .75; }
+
+/* ---- status and thank-you --------------------------------------------------------------------------------- */
 [hidden] { display: none !important; }
-.status { margin-top: .75rem; color: #555; }
+.status { margin-top: var(--sp-3); color: var(--ink-muted); }
 .status:empty { display: none; }
+[data-thanks] {
+  padding: var(--sp-6);
+  border: 1px solid var(--success);
+  border-radius: var(--radius);
+  background: var(--success-soft);
+  color: var(--success);
+  font-weight: 600;
+  font-size: var(--fs-lg);
+}
+[data-thanks] p { margin: 0; }
+[data-thanks] p::before { content: "✓ "; }
+
 .hp { position: absolute; left: -10000px; top: auto; width: 1px; height: 1px; overflow: hidden; }
+
+@media (prefers-reduced-motion: no-preference) {
+  button, input, select, textarea, a { transition: border-color var(--motion), box-shadow var(--motion), background-color var(--motion), filter var(--motion); }
+}
+
+/* narrow screens and narrow iframes: less chrome, same layout */
+@media (max-width: 30rem) {
+  main { margin: var(--sp-4) auto; }
+  h1 { font-size: var(--fs-lg); }
+  button[type="submit"] { width: 100%; }
+}

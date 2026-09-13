@@ -26,9 +26,7 @@
 <main>
     @if ($membership && ! $membership->verified)
         <div class="notice" data-unverified>
-            <p>Your email address is not verified yet: you can build forms, but not publish them or create API keys.
-                This build sends no mail — the verification link is in the api service log
-                (<code>docker compose logs api | grep 'verification link'</code>).</p>
+            <p>Your email address is not verified yet: you can build forms, but not publish them or create API keys.</p>
             <form method="post" action="{{ route('verify.resend') }}" class="inline">
                 @csrf
                 <button type="submit" class="link">Write a new link to the log</button>
