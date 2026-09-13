@@ -33,20 +33,22 @@ What you will see:
 
 `./scripts/demo.sh` — open the page in a browser; the API key is the bearer token for the examples below.
 ```
-api key:   wf_FTvJsEjQBBpGlAGyl8MU5Yo4Qv0IsjrTQJaCQNvB4lJ
+api key:   wf_<43 base62 characters, shown once>
 form id:   01a09629-3b28-70f6-b820-79ec7187fa0a
 form page: http://localhost:8080/f/01a09629-3b28-70f6-b820-79ec7187fa0a
 version:   http://localhost:8080/v1/forms/01a09629-3b28-70f6-b820-79ec7187fa0a
 ```
 
-`make test` — the Pest suite (29 feature files against real PostgreSQL under its four roles, Redis and Redpanda; 6 unit
-files), then the JS suite (`node --test`, no npm dependencies).
+`make test` — the Pest suite against real PostgreSQL under its four roles, Redis and Redpanda, then the JS suite
+(`node --test`, no npm dependencies).
 ```
-  Tests:    440 passed (1747 assertions)
-  Duration: 26.83s
+  Tests:    441 passed (1760 assertions)
 # tests 13
 # pass 13
 ```
+Occasionally the PHP run ends with `The process has been signaled with signal "11"` and a non-zero exit *after* the
+results line: the `pest` child process crashes on shutdown, once every results are printed. No test fails; the cause
+is not diagnosed (it only reproduces on a full run, intermittently, and looks like extension teardown at process exit).
 
 `make load ARGS="--spike 200 --spike-secs 120 --ramp 5 --post 10"` — the generator report, then reconciliation:
 ```
@@ -179,7 +181,7 @@ request — a removed member is out on their next click. A session cookie is nev
 key is never one for `/dashboard`; both are tested.
 
 **API keys** (`/dashboard/api-keys`): each key's prefix, creation time and last use; create shows the plaintext once;
-revoke takes effect on the next `/v1` request (a leaked key is dead in one click). The last live key cannot be revoked. The builder edits a draft (add, move, remove
+revoke takes effect on the next `/v1` request and ends any dashboard session that was started with that key (a leaked key is dead in one click). The last live key cannot be revoked. The builder edits a draft (add, move, remove
 fields; per-type rules; visibility conditions limited to fields above), shows advisory errors per field, publishes
 through the same code the API uses, and previews the form with the public page's own `render.js`. Field ids are
 minted on the server from the label and never change afterwards. The session model is in
