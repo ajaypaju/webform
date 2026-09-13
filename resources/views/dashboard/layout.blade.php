@@ -27,10 +27,14 @@
     @if ($membership && ! $membership->verified)
         <div class="notice" data-unverified>
             <p>Your email address is not verified yet: you can build forms, but not publish them or create API keys.</p>
-            <form method="post" action="{{ route('verify.resend') }}" class="inline">
-                @csrf
-                <button type="submit" class="link">Write a new link to the log</button>
-            </form>
+            @if (\App\Accounts\Verification::showOnScreen())
+                <p>This local build sends no mail, so here is your link: <a href="{{ \App\Accounts\Verification::urlFor($membership->userId, $membership->email) }}" data-verify-link>verify this address</a></p>
+            @else
+                <form method="post" action="{{ route('verify.resend') }}" class="inline">
+                    @csrf
+                    <button type="submit" class="link">Write a new link to the log</button>
+                </form>
+            @endif
         </div>
     @endif
     @if (session('status') && ! request()->routeIs('login', 'dashboard.api-keys'))<p class="status">{{ session('status') }}</p>@endif

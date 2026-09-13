@@ -42,7 +42,7 @@ version:   http://localhost:8080/v1/forms/01a09629-3b28-70f6-b820-79ec7187fa0a
 `make test` — the Pest suite against real PostgreSQL under its four roles, Redis and Redpanda, then the JS suite
 (`node --test`, no npm dependencies).
 ```
-  Tests:    441 passed (1760 assertions)
+  Tests:    442 passed (1772 assertions)
 # tests 13
 # pass 13
 ```
@@ -171,8 +171,9 @@ There is no mail transport in this build, so the verification "email" is a log l
 ```
 docker compose logs api | grep 'verification link'     # copy the URL; it is signed and expires after 24 h
 ```
-Until it is followed you can build forms but not publish them or create API keys; the dashboard says so and can write
-a fresh link to the log. `http://localhost:8000/login` takes email + password, or an API key for tenants provisioned
+Until it is followed you can build forms but not publish them or create API keys. In the local build (`make up`,
+`APP_ENV=local`) the dashboard banner shows the link itself, so you never need the log; in any other environment the
+banner offers to write a fresh link to the log instead. `http://localhost:8000/login` takes email + password, or an API key for tenants provisioned
 with `make tenant` (no user). Either way the session holds only ids — tenant and user — in a server-side Redis session
 behind an `httpOnly`, `SameSite=Lax` cookie; neither the key nor the password reaches the browser or the session
 store. Signup, login and verification resends are rate-limited per IP, the session id is regenerated on login and

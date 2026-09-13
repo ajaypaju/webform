@@ -117,3 +117,26 @@ it('gates publishing and key creation on a verified address, and the logged link
     $this->withSession($session)->post('/dashboard/api-keys')->assertRedirect('/dashboard/api-keys');
     expect(DB::connection('pgsql')->table('api_keys')->count())->toBe(2);
 });
+
+// Only a local build shows the link on screen; anywhere else it is a log line (a mail, once there is a transport).
+it('shows the verification link in the banner only in a local build', function () {
+    $this->post('/signup', SIGNUP)->assertRedirect('/signup/done');
+    $row = owner();
+    $session = ['tenant_id' => $row->tenant_id, 'user_id' => $row->user_id];
+
+    $html = $this->withSession($session)->get('/dashboard')->assertOk()->getContent();
+    expect($html)->toContain('Write a new link to the log')->not->toContain('data-verify-link');
+
+    $this->app['env'] = 'local';
+    try {
+        $html = $this->withSession($session)->get('/dashboard')->assertOk()->getContent();
+        preg_match('#<a href="([^"]+)" data-verify-link>#', $html, $m);
+        expect($html)->not->toContain('Write a new link to the log');
+        $this->withSession($session)->get(html_entity_decode($m[1]))->assertRedirect('/dashboard');
+    } finally {
+        $this->app['env'] = 'testing';
+    }
+
+    expect(DB::connection('pgsql')->table('users')->value('email_verified_at'))->not->toBeNull();
+    $this->withSession($session)->get('/dashboard')->assertOk()->assertDontSee('not verified yet');
+});

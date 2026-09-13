@@ -14,7 +14,21 @@ final class Verification
 
     public static function url(User $user): string
     {
-        return URL::temporarySignedRoute('verify', now()->addHours(self::TTL_HOURS), ['user' => $user->id, 'hash' => self::hash($user->email)]);
+        return self::urlFor($user->id, $user->email);
+    }
+
+    public static function urlFor(string $userId, string $email): string
+    {
+        return URL::temporarySignedRoute('verify', now()->addHours(self::TTL_HOURS), ['user' => $userId, 'hash' => self::hash($email)]);
+    }
+
+    /**
+     * WHY: with no mail transport the link only proves "you can read the log", and the logged-in user already can;
+     * in a local build it is shown on screen so the gate can be exercised without docker logs. Never elsewhere.
+     */
+    public static function showOnScreen(): bool
+    {
+        return app()->environment('local');
     }
 
     public static function hash(string $email): string
