@@ -50,8 +50,12 @@ final class BuilderController extends Controller
         return response()->json(['definition' => $definition, 'definition_errors' => $errors, 'field_errors' => $this->fieldErrors($definition)]);
     }
 
-    public function publish(Form $form, TenantContext $tenant): JsonResponse
+    public function publish(Request $request, Form $form, TenantContext $tenant): JsonResponse
     {
+        if (! ApiKeyController::mayManage($request)) {
+            return response()->json(['error' => 'email_unverified'], 403);
+        }
+
         $version = $this->editor->publish($form, $tenant);
 
         return response()->json(['version_id' => $version->id, 'version_no' => $version->version_no, 'page_url' => self::pageUrl($form)], 201);

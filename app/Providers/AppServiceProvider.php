@@ -46,8 +46,11 @@ class AppServiceProvider extends ServiceProvider
     {
         $role = config('app.role');
 
-        // I13-adjacent: the login form takes an API key; brute force is bounded per IP.
+        // I13-adjacent: credential guessing and account churn are bounded per IP (login covers password, key and
+        // verification-link attempts; resend caps the log lines one visitor can cause).
         LimiterFacade::for('login', fn (Request $request) => Limit::perMinute(5)->by($request->ip()));
+        LimiterFacade::for('signup', fn (Request $request) => Limit::perMinute(5)->by($request->ip()));
+        LimiterFacade::for('resend', fn (Request $request) => Limit::perMinute(3)->by($request->ip()));
 
         if ($role === 'ingest') {
             // WHY: only the HTTP process is guarded here; tests boot with APP_ROLE=ingest but connect as the owner.

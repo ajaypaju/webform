@@ -152,6 +152,8 @@ services:
       DB_PASSWORD: ${DB_API_PASSWORD}
       # Dashboard sessions hold only tenant_id, server-side; ingest keeps SESSION_DRIVER=array and sets no cookie.
       SESSION_DRIVER: redis
+      # WHY: the verification "email" is a log line; `docker compose logs api` must be where it shows up.
+      LOG_CHANNEL: stderr
     ports:
       - "8000:8000"
 

@@ -44,3 +44,7 @@ a.button { display: inline-block; padding: .5rem 1rem; background: #0b5fff; colo
 .detail { display: grid; grid-template-columns: 14rem 1fr; gap: .4rem 1rem; }
 .detail dt { color: #333; }
 .detail dd { margin: 0; word-break: break-word; }
+.nav { display: flex; gap: 1rem; align-items: center; }
+.notice { background: #fff6d6; border: 1px solid #e6c65a; border-radius: 6px; padding: .75rem 1rem; margin-bottom: 1rem; }
+.key { display: block; padding: .5rem; background: #f3f3f3; word-break: break-all; user-select: all; }
+.card h2 { margin-top: 0; }

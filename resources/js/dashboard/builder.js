@@ -288,6 +288,10 @@ export function createBuilder(root, data) {
       say(`Published v${body.version_no}.`);
       return;
     }
+    if (status === 403 && body?.error === 'email_unverified') {
+      say('Not published: verify your email address first (the link is in the api log).');
+      return;
+    }
     publishErrors = body?.errors ?? [{ code: `http_${status}` }];
     render();
     say('Not published: fix the highlighted fields.');
