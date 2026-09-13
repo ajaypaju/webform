@@ -5,8 +5,9 @@ the public data plane (`ingest`) renders forms and accepts submissions into a Re
 them to PostgreSQL exactly once. The claim the design is built around: **a submission that received a 202 is never
 lost** — proven by reconciliation under a chaos run that stops the consumer, PostgreSQL and the broker in turn.
 
-Everything runs in Docker; nothing is installed on the host. [ARCHITECTURE.md](ARCHITECTURE.md) is the design,
-[TRADEOFFS.md](TRADEOFFS.md) the three decisions that matter most.
+Everything runs in Docker; nothing is installed on the host. [ARCHITECTURE.md](ARCHITECTURE.md) is the design and
+stands on its own; [DESIGN-NOTES.md](DESIGN-NOTES.md) is its evidence companion (which test proves what, break-tests,
+code paths); [TRADEOFFS.md](TRADEOFFS.md) the three decisions that matter most.
 
 ## Quickstart (Docker Desktop only)
 
@@ -208,7 +209,7 @@ found by the query planner: the api role cannot use the GIN index under RLS) are
 ## Measured results
 
 One MacBook (Apple M4, 16 GB), Docker Desktop with 10 CPUs / 8 GB, every service on that node, Redpanda RF=1 — local
-numbers, not a benchmark (`ARCHITECTURE.md` §2 has the full context and what each row means).
+numbers, not a benchmark (`ARCHITECTURE.md` §2 has the full context; [DESIGN-NOTES.md §1](DESIGN-NOTES.md#1-measured-results-what-the-rows-mean) explains each row).
 
 | Run (command) | Sent | Acked | Refused | Ack p50 / p95 / p99 / max | Reconcile |
 |---|---|---|---|---|---|
@@ -256,7 +257,8 @@ chaos script killed the PHP process instead (`1a5e883`).
 
 ## More
 
-- [ARCHITECTURE.md](ARCHITECTURE.md) — design, invariants with evidence, data model, failure modes, measured results
+- [ARCHITECTURE.md](ARCHITECTURE.md) — the design: components, requirements, data model, technology choices, failure modes, measured results, built vs designed
+- [DESIGN-NOTES.md](DESIGN-NOTES.md) — the evidence behind it: per-requirement test files and break-tests, the built table with code paths, dashboard auth, validation detail
 - [TRADEOFFS.md](TRADEOFFS.md) — three decisions, what they cost, what would change them
 - [conformance/README.md](conformance/README.md) — the fixture format and the exact validation semantics
 - [loadtest/README.md](loadtest/README.md) — the generator, reconciliation, chaos and drain runs
