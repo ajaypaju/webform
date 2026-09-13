@@ -5,14 +5,6 @@ use App\Consumer\Envelope;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
-function envelope(string $tenant, string $form, string $version, array $overrides = []): string
-{
-    return json_encode(array_merge([
-        'v' => 1, 'submission_id' => (string) Str::uuid7(), 'tenant_id' => $tenant, 'form_id' => $form, 'form_version_id' => $version,
-        'received_at' => '2026-03-04T05:06:07.123456+00:00', 'data' => ['email' => 'a@b.co'], 'meta' => ['ip_hash' => 'x'],
-    ], $overrides), JSON_UNESCAPED_SLASHES);
-}
-
 function writer(): BatchWriter
 {
     return new BatchWriter(DB::connection('pgsql_writer'));

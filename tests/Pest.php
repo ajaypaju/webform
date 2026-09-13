@@ -25,6 +25,14 @@ pest()->beforeEach(function () {
     Redis::flushdb();
 })->in('Feature/Ingest');
 
+// WHY: every test gets a fresh application, and DatabaseTruncation (unlike RefreshDatabase) never closes the old
+// one's PDO connections — they linger until garbage collection, and a long run exhausts max_connections.
+pest()->afterEach(function () {
+    foreach (DB::getConnections() as $connection) {
+        $connection->disconnect();
+    }
+})->in('Feature/Schema', 'Feature/Api', 'Feature/Console', 'Feature/Consumer', 'Feature/Dashboard', 'Feature/Ingest');
+
 // Fixture helpers run on the owner connection ('pgsql', which the test process opens as webform_owner).
 
 function tenant(): string
@@ -112,6 +120,17 @@ function user(string $tenantId, bool $verified = true): array
     DB::connection('pgsql')->table('tenant_users')->insert(['tenant_id' => $tenantId, 'user_id' => $id, 'role' => 'owner']);
 
     return ['id' => $id, 'email' => $email, 'password' => 'correct horse battery'];
+}
+
+// --- Consumer helpers (tests/Feature/Consumer) ----------------------------------------------------
+
+/** One serialised envelope as ingest would produce it; $overrides replace top-level keys. */
+function envelope(string $tenant, string $form, string $version, array $overrides = []): string
+{
+    return json_encode(array_merge([
+        'v' => 1, 'submission_id' => (string) Str::uuid7(), 'tenant_id' => $tenant, 'form_id' => $form, 'form_version_id' => $version,
+        'received_at' => '2026-03-04T05:06:07.123456+00:00', 'data' => ['email' => 'a@b.co'], 'meta' => ['ip_hash' => 'x'],
+    ], $overrides), JSON_UNESCAPED_SLASHES);
 }
 
 // --- Ingest request helpers (tests/Feature/Ingest) -------------------------------------------------
