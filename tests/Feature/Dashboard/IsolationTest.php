@@ -1,7 +1,5 @@
 <?php
 
-use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
-
 // I11: two credentials, two surfaces, never crossed.
 it('never lets a session cookie authenticate the stateless /v1 api', function () {
     $tenant = tenant();

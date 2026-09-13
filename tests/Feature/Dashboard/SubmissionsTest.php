@@ -52,7 +52,7 @@ it('lists columns as the union across versions with the latest label, and tells 
     $labels = array_column(asTenant('pgsql_api', $this->tenant, fn () => CsvExport::columns($this->form)), 'label');
     expect($labels)->toBe(['Full name', 'Seats', 'Plan']);
     preg_match_all('#<th>([^<]*)</th>#', $html, $th);
-    expect($th[1])->toBe(['Received', 'Version', ...$labels]);
+    expect($th[1])->toBe(['Received (UTC)', 'Version', ...$labels]);
 
     preg_match_all('#<tr>\s*<td><a class="row-link"[^>]*>([^<]*)</a></td>\s*<td>([^<]*)</td>(.*?)</tr>#s', $html, $tr, PREG_SET_ORDER);
     expect($tr[0][1])->toBe('2026-05-02 10:00:00')->and($tr[0][2])->toBe('v2')

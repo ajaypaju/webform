@@ -6,6 +6,7 @@ use Illuminate\Foundation\Configuration\Middleware;
 use App\Http\Middleware\AuthenticateApiKey;
 use App\Http\Middleware\DashboardTenant;
 use App\Http\Middleware\PublicHeaders;
+use App\Http\Middleware\PreventRequestForgery;
 use App\Http\ValidationFailed;
 use App\Ingest\BrokerUnavailable;
 use App\Ingest\RateLimited;
@@ -43,6 +44,7 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->alias(['api-key' => AuthenticateApiKey::class, 'dashboard' => DashboardTenant::class]);
+        $middleware->replaceInGroup('web', \Illuminate\Foundation\Http\Middleware\PreventRequestForgery::class, PreventRequestForgery::class);
 
         // I9: global for the public origin so 404s and errors carry the headers too; route middleware never runs
         // for an unmatched path.
@@ -80,7 +82,12 @@ return Application::configure(basePath: dirname(__DIR__))
 
         // 422s carry codes, never messages, on both the control plane and the public API.
         $exceptions->render(fn (ValidationFailed $e) => response()->json(['errors' => $e->errors], $e->status));
-        $exceptions->render(function (ValidationException $e) {
+        $exceptions->render(function (ValidationException $e, Request $request) {
+            // WHY: a browser form on the dashboard gets Laravel's redirect-back-with-errors; only API and fetch callers get codes.
+            if ($request->hasSession() && ! $request->expectsJson()) {
+                return null;
+            }
+
             $errors = [];
 
             foreach ($e->validator->failed() as $field => $rules) {

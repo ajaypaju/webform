@@ -12,8 +12,8 @@
     </header>
 
     <form method="get" action="{{ route('dashboard.submissions', $form) }}" class="filters">
-        <label>From <input type="datetime-local" name="from" value="{{ $filters['from'] ?? '' }}" step="1"></label>
-        <label>To <input type="datetime-local" name="to" value="{{ $filters['to'] ?? '' }}" step="1"></label>
+        <label>From (UTC) <input type="datetime-local" name="from" value="{{ $filters['from'] ?? '' }}" step="1"></label>
+        <label>To (UTC) <input type="datetime-local" name="to" value="{{ $filters['to'] ?? '' }}" step="1"></label>
         <label>Version
             <select name="version_id">
                 <option value="">any</option>
@@ -58,7 +58,7 @@
             <table class="submissions">
                 <thead>
                 <tr>
-                    <th>Received</th>
+                    <th>Received (UTC)</th>
                     <th>Version</th>
                     @foreach ($columns as $column)
                         <th>{{ $column['label'] }}</th>

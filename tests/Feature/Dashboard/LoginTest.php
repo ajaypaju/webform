@@ -3,9 +3,10 @@
 use Illuminate\Support\Facades\DB;
 
 it('rejects a bad key, and never stores anything about it', function () {
-    $this->get('/login')->assertOk()->assertSee('API key');
+    // WHY: the CSRF token travels in the page, so no JS-readable XSRF-TOKEN cookie is issued — only the httpOnly session.
+    $this->get('/login')->assertOk()->assertSee('API key')->assertCookieMissing('XSRF-TOKEN')->assertCookie(config('session.cookie'));
 
-    $this->from('/login')->post('/login', ['api_key' => 'wf_nope'])
+    $this->from('/login')->post('/login/key', ['api_key' => 'wf_nope'])
         ->assertRedirect('/login')
         ->assertSessionHasErrors('api_key')
         ->assertSessionMissing('tenant_id');
@@ -20,7 +21,7 @@ it('creates a tenant-only session from a valid key, regenerating the session id,
     $this->get('/login');
     $before = $this->app['session']->getId();
 
-    $this->post('/login', ['api_key' => $key])->assertRedirect('/dashboard');
+    $this->post('/login/key', ['api_key' => $key])->assertRedirect('/dashboard');
 
     expect(session('tenant_id'))->toBe($tenant)
         ->and($this->app['session']->getId())->not->toBe($before)
@@ -35,9 +36,12 @@ it('creates a tenant-only session from a valid key, regenerating the session id,
 });
 
 it('rate-limits login attempts per ip', function () {
+    // WHY: one bucket for both forms, so alternating between them buys nothing.
     foreach (range(1, 5) as $i) {
-        $this->post('/login', ['api_key' => "wf_wrong_{$i}"])->assertRedirect();
+        $i % 2 ? $this->post('/login/key', ['api_key' => "wf_wrong_{$i}"])->assertRedirect()
+               : $this->post('/login', ['email' => "x{$i}@example.com", 'password' => 'wrong password 123'])->assertRedirect();
     }
 
-    $this->post('/login', ['api_key' => 'wf_wrong_6'])->assertStatus(429);
+    $this->post('/login', ['email' => 'x@example.com', 'password' => 'wrong password 123'])->assertStatus(429);
+    $this->post('/login/key', ['api_key' => 'wf_wrong_6'])->assertStatus(429);
 });

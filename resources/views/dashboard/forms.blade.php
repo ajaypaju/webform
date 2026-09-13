@@ -10,14 +10,14 @@
         <button type="submit">Create</button>
     </form>
     <table>
-        <thead><tr><th>Name</th><th>Status</th><th>Version</th><th>Updated</th><th></th></tr></thead>
+        <thead><tr><th>Name</th><th>Status</th><th>Version</th><th>Updated (UTC)</th><th></th></tr></thead>
         <tbody>
         @forelse ($forms as $form)
             <tr>
                 <td><a href="{{ route('dashboard.forms.show', $form) }}">{{ $form->name }}</a></td>
                 <td>{{ $form->status }}</td>
                 <td>{{ $form->currentVersion?->version_no ?? '—' }}</td>
-                <td>{{ $form->updated_at->toDateTimeString() }}</td>
+                <td>{{ $form->updated_at->utc()->toDateTimeString() }}</td>
                 <td><a href="{{ route('dashboard.submissions', $form) }}">submissions</a></td>
             </tr>
         @empty

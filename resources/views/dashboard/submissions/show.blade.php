@@ -6,7 +6,7 @@
 
     <dl class="detail">
         <dt>Submission id</dt><dd>{{ $submission['id'] }}</dd>
-        <dt>Received</dt><dd>{{ $submission['received_at'] }}</dd>
+        <dt>Received (UTC)</dt><dd>{{ $submission['received_at'] }}</dd>
         <dt>Version</dt><dd>v{{ $submission['version_no'] }} <span class="muted">({{ $submission['version_id'] }}) — labels below are this version's</span></dd>
     </dl>
 
