@@ -20,12 +20,22 @@ final class DashboardTenant
     {
         $tenantId = $request->session()->get('tenant_id');
         $userId = $request->session()->get('user_id');
+        $apiKeyId = $request->session()->get('api_key_id');
 
         if (! is_string($tenantId)) {
             return $this->deny($request);
         }
 
-        return TenantTransaction::run($this->app, $tenantId, function () use ($request, $next, $tenantId, $userId) {
+        return TenantTransaction::run($this->app, $tenantId, function () use ($request, $next, $tenantId, $userId, $apiKeyId) {
+            // A session started with a key lives exactly as long as the key: revoked → gone on the next request.
+            // WHY: an explicit column — exists() selects *, and key_hash is not granted to this role.
+            if (is_string($apiKeyId) && DB::table('api_keys')->where('id', $apiKeyId)->whereNull('revoked_at')->value('id') === null) {
+                $request->session()->invalidate();
+                $request->session()->regenerateToken();
+
+                return $this->deny($request, 'The API key this session was started with has been revoked.');
+            }
+
             if (is_string($userId)) {
                 // I11: membership is re-read on every request, inside the tenant transaction, so a removed member
                 // loses the dashboard on their next request rather than at their next login.

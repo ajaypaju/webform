@@ -106,6 +106,7 @@ The three-sentence version and the isolation mechanism it rides on are in [ARCHI
 
 `api_keys.key_hash` is readable by no app role; `resolve_api_key(key_hash)` is `SECURITY DEFINER` with a pinned `search_path`, executable by `webform_api` only, ignores revoked keys, and records `last_used_at` (at most once a minute per key — it is the only code that sees the hash, and the control plane is not a hot path). The api role sees the other `api_keys` columns of its own tenant so the dashboard can list, create and revoke keys. Cross-tenant ids return 404.
 **API key lifecycle.** The dashboard lists a tenant's keys by prefix with `created_at` and `last_used_at`, creates a key (plaintext shown once, in the response that created it), and revokes one; `resolve_api_key` ignores revoked keys, so a revoked key gets 401 on the next `/v1` request. A tenant always keeps at least one live key: the last one cannot be revoked (the live keys are locked `FOR UPDATE` so two concurrent revokes cannot both pass the count). `make tenant` (`tenants:create`, run as the owner role) still provisions a tenant with a key and no user.
+A session started by pasting a key also records that key's id (`resolve_api_key_id`, a definer function like the other two) and `DashboardTenant` re-checks `revoked_at` on every request, so revoking a key ends the dashboard session it started on that session's next request — the same per-request pattern as the membership check.
 
 ## 5. Validation design: detail
 

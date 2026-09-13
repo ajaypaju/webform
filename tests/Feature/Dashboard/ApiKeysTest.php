@@ -55,8 +55,23 @@ it("cannot see or revoke another tenant's keys", function () {
 
 it('keeps operator-provisioned tenants working: key login manages keys without a user', function () {
     $this->post('/login/key', ['api_key' => $this->first])->assertRedirect('/dashboard');
-    expect(session()->has('user_id'))->toBeFalse();
+    expect(session()->has('user_id'))->toBeFalse()
+        ->and(session('api_key_id'))->toBe(DB::connection('pgsql')->table('api_keys')->value('id'))
+        ->and(json_encode(session()->all()))->not->toContain($this->first);
     $this->get('/dashboard/api-keys')->assertOk()->assertDontSee('not verified');
     $this->post('/dashboard/api-keys')->assertRedirect('/dashboard/api-keys');
     expect(DB::connection('pgsql')->table('api_keys')->where('tenant_id', $this->tenant)->count())->toBe(2);
+});
+
+// A leaked key is dead in one click: /v1 refuses it, and so does the dashboard session that was started with it.
+it('ends a session started with a key on the next request after that key is revoked', function () {
+    $this->post('/login/key', ['api_key' => $this->first])->assertRedirect('/dashboard');
+    $this->get('/dashboard')->assertOk();
+
+    apiKey($this->tenant);
+    DB::connection('pgsql')->table('api_keys')->where('key_hash', hash('sha256', $this->first))->update(['revoked_at' => now()]);
+
+    $this->get('/dashboard')->assertRedirect('/login')->assertSessionHasErrors('login');
+    expect(session()->has('tenant_id'))->toBeFalse()->and(session()->has('api_key_id'))->toBeFalse();
+    $this->post('/login/key', ['api_key' => $this->first])->assertSessionHasErrors('api_key');
 });
