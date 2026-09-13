@@ -6,9 +6,7 @@
 - The proof is in [DESIGN-NOTES.md](DESIGN-NOTES.md): which test proves what, the break-tests, the full built table with code and test paths, the dashboard auth narrative, the validation detail.
 - The three decisions that shape everything are in [TRADEOFFS.md](TRADEOFFS.md).
 - The code is under `app/`, `resources/js/`, `database/migrations/` and `tests/`; [DESIGN-NOTES.md §2](DESIGN-NOTES.md#2-built-code-and-test-paths) maps each built area to its files.
-- Every measured number names the command that produced it; nothing here is a benchmark.
-
-Version 1. Capacity figures in §2 are assumptions and labelled so. The only measured numbers are in "Measured results" below §2 and in §5.1/§5.2; each names the command that produced it. They come from one laptop, not a benchmark.
+- Capacity figures in §2 are assumptions and labelled so; measured numbers appear only in §2 "Measured results" and §5, and every one names the command that produced it. They come from one laptop, not a benchmark.
 
 ## 1. Overview
 
@@ -78,23 +76,25 @@ flowchart LR
     ING[ingest role<br/>Octane / FrankenPHP]
     API[api role<br/>Octane / FrankenPHP]
     RP[(Redpanda<br/>submissions, 12 partitions)]
-    CONS[consumer<br/>artisan submissions:consume]:::designed
+    CONS[consumer<br/>artisan submissions:consume]
     PG[(PostgreSQL 16<br/>partitioned submissions, RLS)]
-    RD[(Redis 7<br/>rate limits)]
+    RD[(Redis 7<br/>rate limits, version cache, sessions)]
     OS[(Object storage<br/>archived partitions, exports)]:::designed
     CH[(ClickHouse<br/>analytics via CDC)]:::designed
     T[Tenant dashboard / API client]
 
-    B -.->|GET page, definition JSON| CDN
+    B -->|GET page, definition JSON| ING
+    B -.->|GET page, definition JSON via CDN| CDN
     CDN -.->|cache miss| ING
     B -->|POST submission| ING
     ING -->|produce, flush, delivery report| RP
-    ING -.->|rate limit| RD
-    ING -.->|version lookup, cached in worker| PG
-    RP -.->|batch consume| CONS
-    CONS -.->|dedupe + insert, then commit offset| PG
-    T -->|API key| API
-    API -.->|forms, versions, submissions, export| PG
+    ING -->|rate limits, version cache| RD
+    ING -->|version lookup, cached in worker| PG
+    RP -->|batch consume| CONS
+    CONS -->|dedupe + insert, then commit offset| PG
+    T -->|API key or session| API
+    API -->|forms, versions, submissions, export| PG
+    API -->|sessions| RD
     PG -.->|CDC| CH
     PG -.->|detach + archive| OS
     API -.->|stream export| OS
