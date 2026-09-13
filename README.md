@@ -13,7 +13,7 @@ Everything runs in Docker; nothing is installed on the host. [ARCHITECTURE.md](A
 ```
 make up            # build, generate keys into .env, start api/ingest/consumer/postgres/redis/redpanda, wait until healthy
 ./scripts/demo.sh  # tenant + a demo form with every field type, published; prints the URL and API key
-                   # then http://localhost:8000/login — paste the key to open the form builder
+                   # then http://localhost:8000/login — paste the key, or sign up at /signup for your own workspace
 make test          # PHP suite against real Postgres/Redpanda + JS conformance suite
 make load          # load overlay, tenant, arrival-rate burst, reconciliation
 make chaos         # burst while stopping consumer, postgres, redpanda, and crashing the consumer; then reconcile
@@ -38,11 +38,11 @@ form page: http://localhost:8080/f/01a09629-3b28-70f6-b820-79ec7187fa0a
 version:   http://localhost:8080/v1/forms/01a09629-3b28-70f6-b820-79ec7187fa0a
 ```
 
-`make test` — the Pest suite (26 feature files against real PostgreSQL under its four roles, Redis and Redpanda; 6 unit
+`make test` — the Pest suite (29 feature files against real PostgreSQL under its four roles, Redis and Redpanda; 6 unit
 files), then the JS suite (`node --test`, no npm dependencies).
 ```
-  Tests:    428 passed (1585 assertions)
-  Duration: 21.01s
+  Tests:    440 passed (1747 assertions)
+  Duration: 26.83s
 # tests 13
 # pass 13
 ```
@@ -91,7 +91,9 @@ app/Ingest/           VersionStore (worker LRU → Redis → Postgres), RenderTo
 app/Consumer/         Envelope, BatchWriter (one transaction, dedupe), Consumer (offsets after commit, DLQ, backoff)
 app/Submissions/      SubmissionQuery (keyset + filters), CsvExport (streamed, version-union columns, injection-safe)
 app/Http/             AuthenticateApiKey + DashboardTenant (session) -> the same tenant transaction; PublicHeaders (CSP);
-                      controllers: /v1 (FormController, SubmissionController), Public (ingest), Dashboard (login, builder, submissions)
+                      controllers: /v1 (FormController, SubmissionController), Public (ingest), Dashboard (signup, login, verification, builder, submissions, API keys)
+app/Accounts/         Signup (one transaction: user, tenant, owner, first key), Verification (signed link, logged in place of mail)
+app/Models/           Form, FormVersion (tenant-scoped), User (not tenant data)
 app/Tenancy/          TenantContext (scoped per request), TenantTransaction, ApiKey
 app/Database/         RuntimeRole: refuses to run as the wrong Postgres role
 app/Kafka/            Producer: produce + flush + per-message delivery report
@@ -159,11 +161,24 @@ curl -s "$API/v1/forms/$FORM/submissions/export.csv" -H "Authorization: Bearer $
 
 ## Dashboard
 
-`http://localhost:8000/login` — paste an API key. The key is hashed and resolved exactly as a bearer token would be,
-and only the tenant id is kept, in a server-side Redis session behind an `httpOnly`, `SameSite=Lax` cookie; the key
-itself never reaches the browser. Login attempts are rate-limited per IP, the session id is regenerated on login,
-logout destroys the session, and every mutating route needs a CSRF token. A session cookie is never a credential for
-`/v1`, and a bearer key is never one for `/dashboard`; both are tested. The builder edits a draft (add, move, remove
+`http://localhost:8000/signup` — email, password (12+ characters), company name. One transaction creates the user,
+the tenant, the owner membership and the first API key, and logs you in; if any step fails nothing is created. The
+response is the same whether or not the address already had an account (the existing owner is told by email instead).
+There is no mail transport in this build, so the verification "email" is a log line:
+```
+docker compose logs api | grep 'verification link'     # copy the URL; it is signed and expires after 24 h
+```
+Until it is followed you can build forms but not publish them or create API keys; the dashboard says so and can write
+a fresh link to the log. `http://localhost:8000/login` takes email + password, or an API key for tenants provisioned
+with `make tenant` (no user). Either way the session holds only ids — tenant and user — in a server-side Redis session
+behind an `httpOnly`, `SameSite=Lax` cookie; neither the key nor the password reaches the browser or the session
+store. Signup, login and verification resends are rate-limited per IP, the session id is regenerated on login and
+signup, logout destroys the session, every mutating route needs a CSRF token, and membership is re-checked on every
+request — a removed member is out on their next click. A session cookie is never a credential for `/v1`, and a bearer
+key is never one for `/dashboard`; both are tested.
+
+**API keys** (`/dashboard/api-keys`): each key's prefix, creation time and last use; create shows the plaintext once;
+revoke takes effect on the next `/v1` request (a leaked key is dead in one click). The last live key cannot be revoked. The builder edits a draft (add, move, remove
 fields; per-type rules; visibility conditions limited to fields above), shows advisory errors per field, publishes
 through the same code the API uses, and previews the form with the public page's own `render.js`. Field ids are
 minted on the server from the label and never change afterwards. The session model is in
@@ -181,10 +196,12 @@ Values are visitor input and are rendered by Blade only; these pages ship no Jav
 
 Built: the whole path from API key to CSV export — durable ingest with a delivery-confirmed ack, the exactly-once
 consumer, four Postgres roles with row-level security, the server-rendered page with a strict CSP, a validator that
-exists twice and is proven identical by shared fixtures, the session dashboard with the form builder and the
-submissions viewer, and the load/chaos tooling that produced the numbers below.
-Designed, not built: CDN, ClickHouse via CDC, object storage, multi-region, per-tenant sharding, webhooks, GDPR
-deletion, async S3 exports, browser automation. The full table and the known limits (including one
+exists twice and is proven identical by shared fixtures, the dashboard with self-service signup, password and
+key login, the form builder, the submissions viewer and API key management, and the load/chaos tooling that produced
+the numbers below.
+Designed, not built: CDN, ClickHouse via CDC, object storage, multi-region, per-tenant sharding, webhooks,
+transactional email (verification links are logged), team management, GDPR deletion, async S3 exports, browser
+automation. The full table and the known limits (including one
 found by the query planner: the api role cannot use the GIN index under RLS) are in
 [ARCHITECTURE.md §11](ARCHITECTURE.md#11-built-vs-designed).
 
