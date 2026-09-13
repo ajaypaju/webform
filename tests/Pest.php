@@ -100,6 +100,20 @@ function apiKey(string $tenantId): string
     return $key;
 }
 
+/** A user who owns $tenantId; password is 'correct horse battery'. @return array{id: string, email: string, password: string} */
+function user(string $tenantId, bool $verified = true): array
+{
+    $id = (string) Str::uuid7();
+    $email = "user-{$id}@example.com";
+    DB::connection('pgsql')->table('users')->insert([
+        'id' => $id, 'email' => $email, 'password_hash' => Illuminate\Support\Facades\Hash::make('correct horse battery'),
+        'email_verified_at' => $verified ? now() : null,
+    ]);
+    DB::connection('pgsql')->table('tenant_users')->insert(['tenant_id' => $tenantId, 'user_id' => $id, 'role' => 'owner']);
+
+    return ['id' => $id, 'email' => $email, 'password' => 'correct horse battery'];
+}
+
 // --- Ingest request helpers (tests/Feature/Ingest) -------------------------------------------------
 
 const IP = '203.0.113.9';

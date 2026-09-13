@@ -42,15 +42,19 @@ it('rejects an api insert that names another tenant', function () {
     expect(DB::table('forms')->where('tenant_id', $b)->count())->toBe(0);
 });
 
-it('denies the api role direct access to api_keys but resolves a key hash to a tenant', function () {
+it('never lets the api role read a key hash, but resolves one to a tenant and records its use', function () {
     $a = tenant();
     $hash = hash('sha256', 'secret');
     DB::table('api_keys')->insert(['id' => (string) Str::uuid7(), 'tenant_id' => $a, 'key_hash' => $hash]);
 
     $db = DB::connection('pgsql_api');
 
-    expect(fn () => $db->table('api_keys')->count())->toThrow(QueryException::class, 'permission denied');
+    expect(fn () => $db->table('api_keys')->value('key_hash'))->toThrow(QueryException::class, 'permission denied');
+    expect(fn () => $db->table('api_keys')->where('key_hash', $hash)->count())->toThrow(QueryException::class, 'permission denied');
+    expect(asTenant('pgsql_api', $a, fn () => $db->table('api_keys')->pluck('prefix', 'id')->all()))->toHaveCount(1)
+        ->and(asTenant('pgsql_api', tenant(), fn () => $db->table('api_keys')->count()))->toBe(0);
     expect($db->scalar('select resolve_api_key(?)', [$hash]))->toBe($a)
+        ->and(DB::table('api_keys')->where('key_hash', $hash)->value('last_used_at'))->not->toBeNull()
         ->and($db->scalar('select resolve_api_key(?)', ['nope']))->toBeNull();
 
     expect(fn () => DB::connection('pgsql_ingest')->scalar('select resolve_api_key(?)', [$hash]))

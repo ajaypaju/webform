@@ -20,7 +20,7 @@ class TenantsCreate extends Command
 
         DB::transaction(function () use ($tenantId, $key) {
             DB::table('tenants')->insert(['id' => $tenantId, 'name' => $this->argument('name')]);
-            DB::table('api_keys')->insert(['id' => (string) Str::uuid7(), 'tenant_id' => $tenantId, 'key_hash' => ApiKey::hash($key)]);
+            DB::table('api_keys')->insert(['id' => (string) Str::uuid7(), 'tenant_id' => $tenantId, 'key_hash' => ApiKey::hash($key), 'prefix' => ApiKey::prefix($key)]);
         });
 
         $this->line("tenant_id: {$tenantId}");

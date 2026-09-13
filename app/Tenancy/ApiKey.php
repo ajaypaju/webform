@@ -39,4 +39,10 @@ final class ApiKey
     {
         return hash('sha256', $key);
     }
+
+    /** The part of a key a tenant may see again after creation: enough to tell keys apart, useless to authenticate. */
+    public static function prefix(string $key): string
+    {
+        return substr($key, 0, 8);
+    }
 }
